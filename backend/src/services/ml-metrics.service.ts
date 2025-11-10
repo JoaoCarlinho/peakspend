@@ -208,14 +208,31 @@ export class MlMetricsService {
       take: 500,
     });
 
+    // Fetch all categories to map IDs to names
+    const categories = await this.prisma.category.findMany({
+      where: {
+        OR: [{ userId }, { isDefault: true }],
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    // Create category ID to name lookup map
+    const categoryMap = new Map<string, string>();
+    categories.forEach((cat) => categoryMap.set(cat.id, cat.name));
+
     const categoryStats = new Map<string, { correct: number; total: number }>();
 
     feedback.forEach((f) => {
-      const category = f.actualCategory || 'Unknown';
-      if (!categoryStats.has(category)) {
-        categoryStats.set(category, { correct: 0, total: 0 });
+      const categoryId = f.actualCategory || 'Unknown';
+      const categoryName = categoryMap.get(categoryId) || categoryId;
+
+      if (!categoryStats.has(categoryName)) {
+        categoryStats.set(categoryName, { correct: 0, total: 0 });
       }
-      const stats = categoryStats.get(category)!;
+      const stats = categoryStats.get(categoryName)!;
       stats.total++;
       if (f.predictedCategory === f.actualCategory || f.feedbackType === 'ACCEPT') {
         stats.correct++;
@@ -251,14 +268,32 @@ export class MlMetricsService {
       take: limit,
     });
 
+    // Fetch all categories to map IDs to names
+    const categories = await this.prisma.category.findMany({
+      where: {
+        OR: [{ userId }, { isDefault: true }],
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    // Create category ID to name lookup map
+    const categoryMap = new Map<string, string>();
+    categories.forEach((cat) => categoryMap.set(cat.id, cat.name));
+
     return errors
       .filter((e) => e.expense !== null)
       .map((e) => {
         const dateStr = e.timestamp.toISOString().split('T')[0];
+        const predictedId = e.predictedCategory || 'Unknown';
+        const actualId = e.actualCategory || 'Unknown';
+
         return {
           merchant: e.expense!.merchant || 'Unknown',
-          predicted: e.predictedCategory || 'Unknown',
-          actual: e.actualCategory || 'Unknown',
+          predicted: categoryMap.get(predictedId) || predictedId,
+          actual: categoryMap.get(actualId) || actualId,
           date: dateStr || '',
         };
       });

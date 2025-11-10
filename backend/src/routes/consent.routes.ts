@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { consentController } from '../controllers/consent.controller';
-import { requireAuth } from '../middleware/auth';
-import { validateRequest } from '../middleware/validation';
+import { requireAuth } from '../middleware/auth.middleware';
+import { validateRequest } from '../middleware/validation.middleware';
 import { updateConsentSchema, acceptTermsSchema } from '../validation/consent.validation';
 
 const router = Router();
