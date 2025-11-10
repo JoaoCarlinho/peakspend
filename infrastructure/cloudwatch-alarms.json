@@ -1,0 +1,29 @@
+{
+  "alarms": [
+    {
+      "name": "PeakSpend-HighErrorRate",
+      "description": "Alert when error rate exceeds 5%",
+      "metric": "PeakSpend/Errors/ErrorCount",
+      "threshold": 5,
+      "evaluationPeriods": 2,
+      "comparisonOperator": "GreaterThanThreshold"
+    },
+    {
+      "name": "PeakSpend-HighLatency",
+      "description": "Alert when p95 latency exceeds 500ms",
+      "metric": "PeakSpend/API/RequestDuration",
+      "statistic": "p95",
+      "threshold": 500,
+      "evaluationPeriods": 3,
+      "comparisonOperator": "GreaterThanThreshold"
+    },
+    {
+      "name": "PeakSpend-DatabaseConnections",
+      "description": "Alert when database connections are high",
+      "metric": "AWS/RDS/DatabaseConnections",
+      "threshold": 80,
+      "evaluationPeriods": 2,
+      "comparisonOperator": "GreaterThanThreshold"
+    }
+  ]
+}

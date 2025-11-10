@@ -1,0 +1,117 @@
+# CloudWatch Alarms Configuration for PeakSpend
+# Deploy using AWS CloudFormation or Terraform
+
+# SNS Topic for Alerts
+SNSTopic:
+  Type: AWS::SNS::Topic
+  Properties:
+    TopicName: peakspend-alerts
+    DisplayName: PeakSpend Critical Alerts
+    Subscription:
+      - Protocol: email
+        Endpoint: alerts@peakspend.example.com  # Replace with actual email
+
+# High Error Rate Alarm
+HighErrorRateAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: peakspend-high-error-rate
+    AlarmDescription: API error rate exceeds 5%
+    MetricName: ErrorCount
+    Namespace: PeakSpend/API
+    Statistic: Sum
+    Period: 300  # 5 minutes
+    EvaluationPeriods: 2
+    Threshold: 5
+    ComparisonOperator: GreaterThanThreshold
+    TreatMissingData: notBreaching
+    AlarmActions:
+      - !Ref SNSTopic
+
+# High Latency Alarm
+HighLatencyAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: peakspend-high-latency
+    AlarmDescription: API latency p95 exceeds 500ms
+    ExtendedStatistic: p95
+    MetricName: RequestDuration
+    Namespace: PeakSpend/API
+    Period: 300
+    EvaluationPeriods: 2
+    Threshold: 500
+    ComparisonOperator: GreaterThanThreshold
+    TreatMissingData: notBreaching
+    AlarmActions:
+      - !Ref SNSTopic
+
+# Database Connections High
+DatabaseConnectionsAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: peakspend-db-connections-high
+    AlarmDescription: Database connections near limit (>80%)
+    MetricName: DatabaseConnections
+    Namespace: AWS/RDS
+    Statistic: Average
+    Period: 300
+    EvaluationPeriods: 1
+    Threshold: 80
+    ComparisonOperator: GreaterThanThreshold
+    Dimensions:
+      - Name: DBInstanceIdentifier
+        Value: peakspend-db
+    AlarmActions:
+      - !Ref SNSTopic
+
+# ECS Container Restart Alarm
+ContainerRestartAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: peakspend-container-restarts
+    AlarmDescription: ECS containers restarting frequently
+    MetricName: TaskCount
+    Namespace: ECS/ContainerInsights
+    Statistic: Sum
+    Period: 300
+    EvaluationPeriods: 1
+    Threshold: 3
+    ComparisonOperator: GreaterThanThreshold
+    Dimensions:
+      - Name: ClusterName
+        Value: peakspend-cluster
+    AlarmActions:
+      - !Ref SNSTopic
+
+# ML Inference Latency Alarm
+MLInferenceLatencyAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: peakspend-ml-inference-slow
+    AlarmDescription: ML inference latency exceeds 1 second (p95)
+    ExtendedStatistic: p95
+    MetricName: InferenceLatency
+    Namespace: PeakSpend/ML
+    Period: 300
+    EvaluationPeriods: 2
+    Threshold: 1000
+    ComparisonOperator: GreaterThanThreshold
+    TreatMissingData: notBreaching
+    AlarmActions:
+      - !Ref SNSTopic
+
+# Redis Memory Usage Alarm
+RedisMemoryAlarm:
+  Type: AWS::CloudWatch::Alarm
+  Properties:
+    AlarmName: peakspend-redis-memory-high
+    AlarmDescription: Redis memory usage exceeds 80%
+    MetricName: DatabaseMemoryUsagePercentage
+    Namespace: AWS/ElastiCache
+    Statistic: Average
+    Period: 300
+    EvaluationPeriods: 2
+    Threshold: 80
+    ComparisonOperator: GreaterThanThreshold
+    AlarmActions:
+      - !Ref SNSTopic
