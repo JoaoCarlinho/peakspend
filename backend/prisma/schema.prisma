@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider      = "prisma-client"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and per-user data isolation
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  expenses     Expense[]
+  categories   Category[]
+  mlModels     MlModel[]
+  trainingData TrainingData[]
+
+  @@map("users")
+}
+
+// Expense model for core expense tracking with financial-grade ACID compliance
+model Expense {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  date       DateTime
+  amount     Decimal  @db.Decimal(10, 2)
+  merchant   String?
+  categoryId String?  @db.Uuid
+  notes      String?
+  receiptUrl String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  trainingData TrainingData[]
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([date])
+  @@index([userId, date])
+  @@map("expenses")
+}
+
+// Category model for user-defined and system default categories
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @db.Uuid // null for system default categories
+  name      String
+  color     String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("categories")
+}
+
+// MlModel model for ML model versioning and metadata
+model MlModel {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  version      String
+  algorithm    String
+  accuracy     Decimal? @db.Decimal(5, 4)
+  trainingDate DateTime
+  modelPath    String
+  createdAt    DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([version])
+  @@index([userId, trainingDate])
+  @@map("ml_models")
+}
+
+// TrainingData model for ML feedback loop and continuous learning
+model TrainingData {
+  id                String       @id @default(uuid()) @db.Uuid
+  userId            String       @db.Uuid
+  expenseId         String?      @db.Uuid
+  predictedCategory String?
+  actualCategory    String?
+  feedbackType      FeedbackType
+  timestamp         DateTime     @default(now())
+
+  // Relations
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expense Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([expenseId])
+  @@index([timestamp])
+  @@index([userId, timestamp])
+  @@map("training_data")
+}
+
+// Enum for feedback types in ML training data
+enum FeedbackType {
+  ACCEPT
+  REJECT
+  MANUAL
+}

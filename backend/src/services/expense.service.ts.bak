@@ -1,0 +1,252 @@
+import { PrismaClient, Expense, Prisma } from '../generated/prisma/client';
+import {
+  CreateExpenseInput,
+  UpdateExpenseInput,
+  ListExpensesQuery,
+} from '../validation/expense.validation';
+
+/**
+ * Expense Service
+ *
+ * Handles all business logic for expense management
+ * Uses Prisma Client for database operations
+ */
+export class ExpenseService {
+  constructor(private prisma: PrismaClient) {}
+
+  /**
+   * Create a new expense for a user
+   *
+   * @param userId - ID of the user creating the expense
+   * @param data - Expense data from request
+   * @returns Created expense
+   */
+  async createExpense(userId: string, data: CreateExpenseInput): Promise<Expense> {
+    return this.prisma.expense.create({
+      data: {
+        userId,
+        date: new Date(data.date),
+        amount: data.amount,
+        merchant: data.merchant,
+        categoryId: data.categoryId || null,
+        notes: data.notes || null,
+        receiptUrl: data.receiptUrl || null,
+      },
+      include: {
+        category: true,
+      },
+    });
+  }
+
+  /**
+   * Get a single expense by ID
+   *
+   * Only returns expense if it belongs to the specified user
+   *
+   * @param id - Expense ID
+   * @param userId - User ID for ownership check
+   * @returns Expense or null if not found/not owned
+   */
+  async getExpenseById(id: string, userId: string): Promise<Expense | null> {
+    return this.prisma.expense.findFirst({
+      where: {
+        id,
+        userId,
+      },
+      include: {
+        category: true,
+      },
+    });
+  }
+
+  /**
+   * Get paginated list of expenses for a user
+   *
+   * Supports filtering, sorting, and search
+   *
+   * @param userId - User ID
+   * @param query - Query parameters for pagination, filtering, sorting
+   * @returns Object with expenses array and pagination metadata
+   */
+  async getExpenses(userId: string, query: ListExpensesQuery) {
+    const {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      dateFrom,
+      dateTo,
+      categoryId,
+      merchantSearch,
+      minAmount,
+      maxAmount,
+      search,
+    } = query;
+
+    // Build Prisma where clause
+    const where: Prisma.ExpenseWhereInput = {
+      userId,
+    };
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      where.date = {};
+      if (dateFrom) {
+        where.date.gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        where.date.lte = new Date(dateTo);
+      }
+    }
+
+    // Category filter
+    if (categoryId) {
+      where.categoryId = categoryId;
+    }
+
+    // Amount range filter
+    if (minAmount !== undefined || maxAmount !== undefined) {
+      where.amount = {};
+      if (minAmount !== undefined) {
+        where.amount.gte = minAmount;
+      }
+      if (maxAmount !== undefined) {
+        where.amount.lte = maxAmount;
+      }
+    }
+
+    // Merchant search filter
+    if (merchantSearch) {
+      where.merchant = {
+        contains: merchantSearch,
+        mode: 'insensitive',
+      };
+    }
+
+    // General search filter (merchant OR notes)
+    if (search) {
+      where.OR = [
+        {
+          merchant: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          notes: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
+
+    // Build Prisma orderBy clause
+    const orderBy: Prisma.ExpenseOrderByWithRelationInput = {};
+    if (sortBy === 'category') {
+      // Sort by category name
+      orderBy.category = {
+        name: sortOrder,
+      };
+    } else {
+      orderBy[sortBy] = sortOrder;
+    }
+
+    // Execute queries in parallel
+    const [expenses, total] = await Promise.all([
+      this.prisma.expense.findMany({
+        where,
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          category: true,
+        },
+      }),
+      this.prisma.expense.count({ where }),
+    ]);
+
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: expenses,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
+  }
+
+  /**
+   * Update an existing expense
+   *
+   * Only allows updating if expense belongs to the specified user
+   *
+   * @param id - Expense ID
+   * @param userId - User ID for ownership check
+   * @param data - Expense data to update
+   * @returns Updated expense or null if not found/not owned
+   */
+  async updateExpense(
+    id: string,
+    userId: string,
+    data: UpdateExpenseInput
+  ): Promise<Expense | null> {
+    // Check if expense exists and belongs to user
+    const existing = await this.getExpenseById(id, userId);
+    if (!existing) {
+      return null;
+    }
+
+    // Update expense - only include fields that are provided
+    const updateData: Prisma.ExpenseUpdateInput = {};
+    if (data.date) updateData.date = new Date(data.date);
+    if (data.amount !== undefined) updateData.amount = data.amount;
+    if (data.merchant !== undefined) updateData.merchant = data.merchant;
+    if (data.categoryId !== undefined) {
+      // Use Prisma relation syntax for categoryId
+      if (data.categoryId === null) {
+        updateData.category = { disconnect: true };
+      } else {
+        updateData.category = { connect: { id: data.categoryId } };
+      }
+    }
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.receiptUrl !== undefined) updateData.receiptUrl = data.receiptUrl;
+
+    return this.prisma.expense.update({
+      where: { id },
+      data: updateData,
+      include: {
+        category: true,
+      },
+    });
+  }
+
+  /**
+   * Delete an expense
+   *
+   * Only allows deleting if expense belongs to the specified user
+   *
+   * @param id - Expense ID
+   * @param userId - User ID for ownership check
+   * @returns True if deleted, false if not found/not owned
+   */
+  async deleteExpense(id: string, userId: string): Promise<boolean> {
+    // Check if expense exists and belongs to user
+    const existing = await this.getExpenseById(id, userId);
+    if (!existing) {
+      return false;
+    }
+
+    // Delete expense
+    await this.prisma.expense.delete({
+      where: { id },
+    });
+
+    return true;
+  }
+}

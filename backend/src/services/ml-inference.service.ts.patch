@@ -1,0 +1,21 @@
+--- a/src/services/ml-inference.service.ts
++++ b/src/services/ml-inference.service.ts
+@@ -368,10 +368,14 @@ export class MlInferenceService {
+       });
+ 
+-      const mostCommonCategory = Object.keys(categoryCounts).reduce((a, b) =>
+-        categoryCounts[a] > categoryCounts[b] ? a : b
+-      );
+-
+-      if (mostCommonCategory !== expenseData.categoryId && categoryCounts[mostCommonCategory] > merchantExpenses.length * 0.7) {
++      const categoryKeys = Object.keys(categoryCounts);
++      if (categoryKeys.length === 0) {
++        return { hasError: false, confidence: 0.9 };
++      }
++
++      const mostCommonCategory = categoryKeys.reduce((a, b) =>
++        (categoryCounts[a] || 0) > (categoryCounts[b] || 0) ? a : b
++      );
++
++      if (mostCommonCategory !== expenseData.categoryId && (categoryCounts[mostCommonCategory] || 0) > merchantExpenses.length * 0.7) {
+         const category = merchantExpenses.find((exp) => exp.categoryId === mostCommonCategory)?.category;
