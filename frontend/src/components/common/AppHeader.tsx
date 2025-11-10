@@ -7,6 +7,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LearningBadge } from '../improvement-metrics/LearningBadge';
+import { UserMenu } from './UserMenu';
 
 export function AppHeader() {
   const navigate = useNavigate();
@@ -64,6 +65,7 @@ export function AppHeader() {
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <LearningBadge />
+          <UserMenu />
         </Box>
       </Toolbar>
     </AppBar>

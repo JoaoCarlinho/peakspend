@@ -82,12 +82,21 @@ export async function register(input: RegisterInput): Promise<AuthResponse> {
   // Hash password with bcrypt (salt rounds 12)
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  // Create user in database
+  // Create user in database with default consent
+  const now = new Date();
   const user = await prisma.user.create({
     data: {
       email,
       passwordHash,
       name: name || null,
+      // Set consent defaults - terms must be accepted during registration
+      termsAcceptedAt: now,
+      termsVersion: '1.0.0',
+      privacyPolicyAcceptedAt: now,
+      privacyPolicyVersion: '1.0.0',
+      marketingConsent: false,
+      analyticsConsent: true,
+      mlTrainingConsent: true,
     },
   });
 

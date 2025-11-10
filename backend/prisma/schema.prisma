@@ -24,6 +24,15 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Consent tracking (GDPR compliance)
+  termsAcceptedAt         DateTime?
+  termsVersion            String?
+  privacyPolicyAcceptedAt DateTime?
+  privacyPolicyVersion    String?
+  marketingConsent        Boolean   @default(false)
+  analyticsConsent        Boolean   @default(true)
+  mlTrainingConsent       Boolean   @default(true)
+
   // Relations
   expenses     Expense[]
   categories   Category[]

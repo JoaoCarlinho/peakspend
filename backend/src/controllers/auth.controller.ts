@@ -60,6 +60,18 @@ export async function loginHandler(req: Request, res: Response): Promise<void> {
 }
 
 /**
+ * POST /api/auth/logout
+ * Logout user (JWT is stateless, so this is mainly for client-side token clearing)
+ */
+export async function logoutHandler(_req: Request, res: Response): Promise<void> {
+  // Since we're using stateless JWT, logout is handled client-side
+  // This endpoint exists for consistency and potential future server-side session management
+  res.status(200).json({
+    message: 'Logged out successfully',
+  });
+}
+
+/**
  * GET /api/auth/me
  * Get current authenticated user (protected route)
  */

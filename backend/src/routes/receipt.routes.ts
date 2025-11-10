@@ -65,8 +65,8 @@ router.post(
       const signedUrl = await s3Service.getSignedUrl(s3Key);
 
       res.status(201).json({
-        url: s3Key,
-        signedUrl,
+        key: s3Key,
+        receiptUrl: signedUrl,
         filename: file.originalname,
         size: file.size,
         contentType: file.mimetype,

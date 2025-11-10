@@ -10,6 +10,7 @@ import feedbackRoutes from './routes/feedback.routes';
 import mlMetricsRoutes from './routes/ml-metrics.routes';
 import insightsRoutes from './routes/insights.routes';
 import trainingDataRoutes from './routes/training-data.routes';
+import consentRoutes from './routes/consent.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 const app: Application = express();
@@ -27,6 +28,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/consent', consentRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/api/categories', categoryRoutes);

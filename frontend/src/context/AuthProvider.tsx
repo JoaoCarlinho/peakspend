@@ -42,8 +42,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(response.user);
   };
 
-  const logout = () => {
-    localStorage.removeItem('auth_token');
+  const logout = async () => {
+    await authService.logout();
     setUser(null);
   };
 

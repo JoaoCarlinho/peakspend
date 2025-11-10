@@ -69,3 +69,32 @@ export async function getCurrentUser(): Promise<User> {
 
   return response.data.user;
 }
+
+/**
+ * Logout current user
+ * Clears local token and notifies backend
+ */
+export async function logout(): Promise<void> {
+  const token = localStorage.getItem('auth_token');
+
+  if (token) {
+    try {
+      // Call backend logout endpoint
+      await axios.post(
+        `${API_BASE_URL}/api/auth/logout`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+    } catch (error) {
+      // Continue with logout even if backend call fails
+      console.error('Logout API call failed:', error);
+    }
+  }
+
+  // Clear local storage
+  localStorage.removeItem('auth_token');
+}

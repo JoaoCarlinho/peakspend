@@ -3,6 +3,7 @@ import {
   registerHandler,
   loginHandler,
   getMeHandler,
+  logoutHandler,
 } from '../controllers/auth.controller';
 import { requireAuth } from '../middleware/auth.middleware';
 
@@ -21,6 +22,13 @@ router.post('/register', registerHandler);
  * Public route
  */
 router.post('/login', loginHandler);
+
+/**
+ * POST /api/auth/logout
+ * Logout current user (client-side token invalidation)
+ * Protected route - requires valid JWT
+ */
+router.post('/logout', requireAuth, logoutHandler);
 
 /**
  * GET /api/auth/me
