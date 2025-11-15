@@ -9,6 +9,9 @@ import { ExpensesPage } from './pages/ExpensesPage';
 import { ExpenseDetailPage } from './pages/ExpenseDetailPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { MLDashboardPage } from './pages/MLDashboardPage';
+import { ConsentSettingsPage } from './pages/ConsentSettingsPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { SettingsPage } from './pages/SettingsPage';
 
 const theme = createTheme({
   palette: {
@@ -77,6 +80,36 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <MLDashboardPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/consent-settings"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ConsentSettingsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ProfilePage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <SettingsPage />
                   </Layout>
                 </ProtectedRoute>
               }

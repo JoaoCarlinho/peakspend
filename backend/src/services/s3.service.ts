@@ -7,22 +7,44 @@ import { v4 as uuidv4 } from 'uuid';
  *
  * Handles all AWS S3 operations for receipt storage
  * Uses AWS SDK v3 with proper error handling
+ * Supports MinIO for local development via S3_ENDPOINT configuration
  */
 export class S3Service {
   private s3Client: S3Client;
   private bucketName: string;
+  private publicEndpoint: string | undefined;
 
   constructor() {
     const region = process.env['AWS_REGION'] || 'us-east-1';
     this.bucketName = process.env['S3_BUCKET_NAME'] || 'peakspend-receipts-dev';
+    const endpoint = process.env['S3_ENDPOINT']; // For MinIO: http://minio:9000
+    const forcePathStyle = process.env['S3_FORCE_PATH_STYLE'] === 'true';
 
-    this.s3Client = new S3Client({
+    // Public endpoint for browser access (replaces internal Docker hostname with localhost)
+    this.publicEndpoint = process.env['S3_PUBLIC_ENDPOINT']; // e.g., http://localhost:9000
+
+    const s3Config: any = {
       region,
       credentials: {
         accessKeyId: process.env['AWS_ACCESS_KEY_ID'] || '',
         secretAccessKey: process.env['AWS_SECRET_ACCESS_KEY'] || '',
       },
-    });
+    };
+
+    // MinIO/LocalStack support: use custom endpoint with path-style URLs
+    if (endpoint) {
+      s3Config.endpoint = endpoint;
+      s3Config.forcePathStyle = forcePathStyle;
+      console.log(`📦 S3Service: Using custom endpoint ${endpoint} (MinIO/LocalStack mode)`);
+
+      // If no public endpoint specified, auto-convert minio:9000 to localhost:9000
+      if (!this.publicEndpoint && endpoint.includes('minio:')) {
+        this.publicEndpoint = endpoint.replace('minio:', 'localhost:');
+        console.log(`📦 S3Service: Public endpoint auto-configured as ${this.publicEndpoint}`);
+      }
+    }
+
+    this.s3Client = new S3Client(s3Config);
   }
 
   /**
@@ -70,9 +92,17 @@ export class S3Service {
     });
 
     // Generate signed URL with 15 minute expiration
-    const signedUrl = await getSignedUrl(this.s3Client, command, {
+    let signedUrl = await getSignedUrl(this.s3Client, command, {
       expiresIn: 900, // 15 minutes
     });
+
+    // Replace internal Docker hostname with public endpoint for browser access
+    if (this.publicEndpoint && signedUrl.includes('minio:')) {
+      const internalHost = new URL(process.env['S3_ENDPOINT'] || '').host;
+      const publicHost = new URL(this.publicEndpoint).host;
+      signedUrl = signedUrl.replace(internalHost, publicHost);
+      console.log(`📦 S3Service: Converted signed URL to use public endpoint`);
+    }
 
     return signedUrl;
   }
