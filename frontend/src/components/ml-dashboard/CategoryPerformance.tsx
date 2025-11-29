@@ -40,27 +40,33 @@ export function CategoryPerformance({ categoryBreakdown }: CategoryPerformancePr
 
         {/* Bar Chart */}
         <Box sx={{ width: '100%', height: 300, mt: 2 }}>
-          <ResponsiveContainer>
-            <BarChart data={sortedCategories} layout="horizontal">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                type="number"
-                domain={[0, 1]}
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
-              />
-              <YAxis dataKey="category" type="category" tick={{ fontSize: 12 }} width={100} />
-              <Tooltip
-                formatter={(value: number) => `${(value * 100).toFixed(1)}%`}
-                labelFormatter={(label) => `Category: ${label}`}
-              />
-              <Bar dataKey="accuracy" radius={[0, 4, 4, 0]}>
-                {sortedCategories.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getBarColor(entry.accuracy)} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {sortedCategories.length > 0 ? (
+            <ResponsiveContainer>
+              <BarChart data={sortedCategories} layout="horizontal">
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  type="number"
+                  domain={[0, 1]}
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                />
+                <YAxis dataKey="category" type="category" tick={{ fontSize: 12 }} width={100} />
+                <Tooltip
+                  formatter={(value: number) => `${(value * 100).toFixed(1)}%`}
+                  labelFormatter={(label) => `Category: ${label}`}
+                />
+                <Bar dataKey="accuracy" radius={[0, 4, 4, 0]}>
+                  {sortedCategories.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={getBarColor(entry.accuracy)} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', bgcolor: 'grey.100', borderRadius: 2 }}>
+              <Typography color="text.secondary">No category data available yet. Start categorizing expenses to see performance by category!</Typography>
+            </Box>
+          )}
         </Box>
 
         {/* Detailed Table */}

@@ -74,7 +74,7 @@ export function MLDashboardPage() {
       {/* Dashboard Grid */}
       <Grid container spacing={3}>
         {/* Row 1: Accuracy Overview (full width) */}
-        <Grid item xs={12}>
+        <Grid size={12}>
           <AccuracyOverview
             currentAccuracy={dashboardData.currentAccuracy}
             accuracyTrend={dashboardData.accuracyTrend}
@@ -83,16 +83,16 @@ export function MLDashboardPage() {
         </Grid>
 
         {/* Row 2: Learning Progress (full width) */}
-        <Grid item xs={12}>
+        <Grid size={12}>
           <LearningProgress improvementMetrics={improvementData} />
         </Grid>
 
         {/* Row 3: Category Performance and Feedback Stats */}
-        <Grid item xs={12} lg={7}>
+        <Grid size={{ xs: 12, lg: 7 }}>
           <CategoryPerformance categoryBreakdown={dashboardData.categoryBreakdown} />
         </Grid>
 
-        <Grid item xs={12} lg={5}>
+        <Grid size={{ xs: 12, lg: 5 }}>
           <FeedbackStats
             improvementMetrics={dashboardData.improvementMetrics}
             categoryBreakdown={dashboardData.categoryBreakdown}

@@ -14,8 +14,16 @@ interface LearningProgressProps {
 export function LearningProgress({ improvementMetrics }: LearningProgressProps) {
   const { accuracyImprovement, learningRate, userEngagement, timeSavings } = improvementMetrics;
 
+  // Safe values to prevent NaN errors
+  const safeAccuracyImprovement = isFinite(accuracyImprovement) ? accuracyImprovement : 0;
+  const safeLearningRate = isFinite(learningRate) ? learningRate : 0;
+  const safeUserEngagement = isFinite(userEngagement) ? userEngagement : 0;
+  const safePercentageReduction = isFinite(timeSavings?.percentageReduction) ? timeSavings.percentageReduction : 0;
+  const safeManualBefore = isFinite(timeSavings?.manualCategorizationsBefore) ? timeSavings.manualCategorizationsBefore : 0;
+  const safeAutoNow = isFinite(timeSavings?.autoCategorizationsNow) ? timeSavings.autoCategorizationsNow : 0;
+
   // Calculate progress percentage (0-100)
-  const learningProgress = Math.min(100, Math.max(0, learningRate * 100));
+  const learningProgress = Math.min(100, Math.max(0, safeLearningRate * 100));
 
   return (
     <Card>
@@ -27,7 +35,7 @@ export function LearningProgress({ improvementMetrics }: LearningProgressProps) 
         {/* Metric Cards */}
         <Grid container spacing={2} sx={{ mt: 1 }}>
           {/* Accuracy Improvement */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Box
               sx={{
                 p: 2,
@@ -38,7 +46,7 @@ export function LearningProgress({ improvementMetrics }: LearningProgressProps) 
             >
               <TrendingUp sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
               <Typography variant="h4" color="primary.main" fontWeight="bold">
-                {(accuracyImprovement * 100).toFixed(1)}%
+                {(safeAccuracyImprovement * 100).toFixed(1)}%
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Accuracy Improvement
@@ -47,7 +55,7 @@ export function LearningProgress({ improvementMetrics }: LearningProgressProps) 
           </Grid>
 
           {/* Learning Rate */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Box
               sx={{
                 p: 2,
@@ -58,7 +66,7 @@ export function LearningProgress({ improvementMetrics }: LearningProgressProps) 
             >
               <School sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
               <Typography variant="h4" color="success.main" fontWeight="bold">
-                {(learningRate * 100).toFixed(0)}%
+                {(safeLearningRate * 100).toFixed(0)}%
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Learning Rate
@@ -67,7 +75,7 @@ export function LearningProgress({ improvementMetrics }: LearningProgressProps) 
           </Grid>
 
           {/* User Engagement */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Box
               sx={{
                 p: 2,
@@ -78,7 +86,7 @@ export function LearningProgress({ improvementMetrics }: LearningProgressProps) 
             >
               <Speed sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
               <Typography variant="h4" color="warning.main" fontWeight="bold">
-                {(userEngagement * 100).toFixed(0)}%
+                {(safeUserEngagement * 100).toFixed(0)}%
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Engagement Score
@@ -87,7 +95,7 @@ export function LearningProgress({ improvementMetrics }: LearningProgressProps) 
           </Grid>
 
           {/* Time Savings */}
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Box
               sx={{
                 p: 2,
@@ -98,7 +106,7 @@ export function LearningProgress({ improvementMetrics }: LearningProgressProps) 
             >
               <Timer sx={{ fontSize: 40, color: 'info.main', mb: 1 }} />
               <Typography variant="h4" color="info.main" fontWeight="bold">
-                {timeSavings.percentageReduction.toFixed(0)}%
+                {safePercentageReduction.toFixed(0)}%
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Time Saved
@@ -131,20 +139,20 @@ export function LearningProgress({ improvementMetrics }: LearningProgressProps) 
             Automation Impact
           </Typography>
           <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={6}>
+            <Grid size={6}>
               <Typography variant="body2" color="text.secondary">
                 Before Automation
               </Typography>
               <Typography variant="h6">
-                {timeSavings.manualCategorizationsBefore} manual
+                {safeManualBefore} manual
               </Typography>
             </Grid>
-            <Grid item xs={6}>
+            <Grid size={6}>
               <Typography variant="body2" color="text.secondary">
                 Now Automated
               </Typography>
               <Typography variant="h6" color="success.main">
-                {timeSavings.autoCategorizationsNow} auto
+                {safeAutoNow} auto
               </Typography>
             </Grid>
           </Grid>

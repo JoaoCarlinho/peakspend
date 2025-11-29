@@ -52,36 +52,42 @@ export function AccuracyOverview({ currentAccuracy, accuracyTrend, improvement }
           30-Day Accuracy Trend
         </Typography>
         <Box sx={{ width: '100%', height: 200, mt: 2 }}>
-          <ResponsiveContainer>
-            <LineChart data={accuracyTrend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => {
-                  const date = new Date(value);
-                  return `${date.getMonth() + 1}/${date.getDate()}`;
-                }}
-              />
-              <YAxis
-                domain={[0, 1]}
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
-              />
-              <Tooltip
-                formatter={(value: number) => `${(value * 100).toFixed(1)}%`}
-                labelFormatter={(label) => new Date(label).toLocaleDateString()}
-              />
-              <Line
-                type="monotone"
-                dataKey="accuracy"
-                stroke="#1976d2"
-                strokeWidth={2}
-                dot={{ r: 3 }}
-                activeDot={{ r: 5 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {accuracyTrend.length > 0 ? (
+            <ResponsiveContainer>
+              <LineChart data={accuracyTrend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                  }}
+                />
+                <YAxis
+                  domain={[0, 1]}
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                />
+                <Tooltip
+                  formatter={(value: number) => `${(value * 100).toFixed(1)}%`}
+                  labelFormatter={(label) => new Date(label).toLocaleDateString()}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="accuracy"
+                  stroke="#1976d2"
+                  strokeWidth={2}
+                  dot={{ r: 3 }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', bgcolor: 'grey.100', borderRadius: 2 }}>
+              <Typography color="text.secondary">No trend data available yet. Start categorizing expenses to see your progress!</Typography>
+            </Box>
+          )}
         </Box>
 
         {/* Status Legend */}
