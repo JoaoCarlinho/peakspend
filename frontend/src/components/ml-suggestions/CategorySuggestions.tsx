@@ -64,7 +64,7 @@ export function CategorySuggestions({
       case 'rule':
         return <RuleIcon fontSize="small" />;
       default:
-        return null;
+        return <AIIcon fontSize="small" />;
     }
   };
 
@@ -81,10 +81,10 @@ export function CategorySuggestions({
     }
   };
 
-  const getConfidenceColor = (confidence: number): 'success' | 'warning' | 'default' => {
+  const getConfidenceColor = (confidence: number): 'success' | 'warning' | 'primary' => {
     if (confidence >= 0.8) return 'success';
     if (confidence >= 0.6) return 'warning';
-    return 'default';
+    return 'primary';
   };
 
   return (

@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import { Box, Chip, Tooltip, CircularProgress } from '@mui/material';
 import {
   School as SchoolIcon,
@@ -20,7 +21,7 @@ export function LearningBadge() {
   const { learningRate } = improvementData;
   const learningProgress = Math.min(100, Math.max(0, learningRate * 100));
 
-  const getLevel = (progress: number): { label: string; icon: JSX.Element; color: 'default' | 'primary' | 'success' } => {
+  const getLevel = (progress: number): { label: string; icon: ReactElement; color: 'default' | 'primary' | 'success' } => {
     if (progress >= 80) {
       return {
         label: 'Expert AI',

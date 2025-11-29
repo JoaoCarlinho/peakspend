@@ -40,7 +40,7 @@ interface ExpenseFormData {
 export function ExpenseForm({ expense, onSubmit, onCancel, isSubmitting = false }: ExpenseFormProps) {
   // Receipt upload state
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptUrl, setReceiptUrl] = useState<string | undefined>(expense?.receiptUrl);
+  const [receiptUrl, setReceiptUrl] = useState<string | undefined>(expense?.receiptUrl ?? undefined);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessingOcr, setIsProcessingOcr] = useState(false);

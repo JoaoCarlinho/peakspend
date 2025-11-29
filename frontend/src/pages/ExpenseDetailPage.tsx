@@ -168,7 +168,7 @@ export function ExpenseDetailPage() {
           />
         ) : (
           <ExpenseDetail
-            expense={expense}
+            expense={expense!}
             onEdit={handleEdit}
             onDelete={handleDelete}
           />

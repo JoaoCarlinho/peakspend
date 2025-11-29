@@ -12,7 +12,7 @@ import { Box, Card, CardContent, Chip, LinearProgress, Stack, Typography } from 
 import { TrendingUp, CheckCircle, Psychology, Timeline } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 
 const ML_API_BASE = import.meta.env.VITE_ML_API_BASE_URL || 'http://localhost:8000';
 
