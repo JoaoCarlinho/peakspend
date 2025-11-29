@@ -57,7 +57,9 @@
     "uuid": "^9.0.1",
     "winston": "^3.18.3",
     "winston-cloudwatch": "^6.3.0",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -78,9 +80,7 @@
     "jest": "^30.2.0",
     "supertest": "^6.3.4",
     "ts-jest": "^29.4.5",
-    "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.3"
   }
 }
