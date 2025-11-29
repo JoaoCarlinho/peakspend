@@ -145,8 +145,8 @@ export class TrainingDataService {
       };
     }
 
-    const acceptedCount = trainingData.filter((d) => d.feedbackType === 'ACCEPTED').length;
-    const correctedCount = trainingData.filter((d) => d.feedbackType === 'CORRECTED').length;
+    const acceptedCount = trainingData.filter((d) => d.feedbackType === 'ACCEPT').length;
+    const correctedCount = trainingData.filter((d) => d.feedbackType === 'REJECT' || d.feedbackType === 'MANUAL').length;
 
     // Category distribution
     const categoryCounts: Record<string, number> = {};

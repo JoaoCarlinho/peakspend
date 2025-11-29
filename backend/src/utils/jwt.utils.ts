@@ -14,9 +14,10 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
  * @returns Signed JWT token string
  */
 export function signToken(payload: JwtPayload): string {
+  // Cast to any to avoid strict type checking on expiresIn
   return jwt.sign(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
-  });
+  } as any);
 }
 
 /**
