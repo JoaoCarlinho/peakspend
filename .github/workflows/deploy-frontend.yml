@@ -1,0 +1,105 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - dev
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    name: Deploy to CloudFront
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_ENV: production
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get deployment info
+        id: deploy-info
+        run: |
+          BUCKET_NAME="peakspend-frontend-${{ github.event.inputs.environment || 'production' }}-${{ secrets.AWS_ACCOUNT_ID }}"
+          echo "bucket_name=$BUCKET_NAME" >> $GITHUB_OUTPUT
+
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Comment=='PeakSpend ${{ github.event.inputs.environment || 'production' }} Frontend'].Id" \
+            --output text 2>/dev/null || echo "")
+          echo "distribution_id=$DISTRIBUTION_ID" >> $GITHUB_OUTPUT
+
+      - name: Sync to S3
+        run: |
+          # Sync all files except index.html and JSON with long cache
+          aws s3 sync frontend/dist s3://${{ steps.deploy-info.outputs.bucket_name }} \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html" \
+            --exclude "*.json"
+
+          # Upload index.html with no-cache
+          aws s3 cp frontend/dist/index.html s3://${{ steps.deploy-info.outputs.bucket_name }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+          # Upload JSON config files with short cache
+          aws s3 sync frontend/dist s3://${{ steps.deploy-info.outputs.bucket_name }} \
+            --exclude "*" \
+            --include "*.json" \
+            --cache-control "public, max-age=300"
+
+      - name: Invalidate CloudFront cache
+        if: steps.deploy-info.outputs.distribution_id != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.deploy-info.outputs.distribution_id }} \
+            --paths "/*"
+
+      - name: Output deployment URL
+        run: |
+          if [ -n "${{ steps.deploy-info.outputs.distribution_id }}" ]; then
+            DOMAIN=$(aws cloudfront get-distribution \
+              --id ${{ steps.deploy-info.outputs.distribution_id }} \
+              --query 'Distribution.DomainName' \
+              --output text)
+            echo "::notice title=Deployment Success::Frontend deployed to https://$DOMAIN"
+          else
+            echo "::notice title=Deployment Success::Frontend deployed to S3 bucket ${{ steps.deploy-info.outputs.bucket_name }}"
+          fi

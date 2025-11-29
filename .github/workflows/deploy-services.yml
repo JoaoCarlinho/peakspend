@@ -1,0 +1,106 @@
+name: Deploy Services
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - 'ml-service/**'
+      - 'infrastructure/mlflow/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - dev
+      service:
+        description: 'Service to deploy'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ml-service
+          - mlflow
+          - workers
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy Services
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Get AWS Account ID
+        id: account
+        run: echo "account_id=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_OUTPUT
+
+      - name: Set environment
+        id: env
+        run: |
+          ENV=${{ github.event.inputs.environment || 'production' }}
+          SERVICE=${{ github.event.inputs.service || 'all' }}
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "service=$SERVICE" >> $GITHUB_OUTPUT
+
+      - name: Build and Push ML Service
+        if: steps.env.outputs.service == 'all' || steps.env.outputs.service == 'ml-service'
+        run: |
+          ECR_REPO=${{ steps.account.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/peakspend-${{ steps.env.outputs.environment }}-ml-service
+          docker build -t $ECR_REPO:latest -t $ECR_REPO:${{ github.sha }} -f ml-service/Dockerfile ml-service/
+          docker push $ECR_REPO:latest
+          docker push $ECR_REPO:${{ github.sha }}
+
+      - name: Build and Push MLflow
+        if: steps.env.outputs.service == 'all' || steps.env.outputs.service == 'mlflow'
+        run: |
+          ECR_REPO=${{ steps.account.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/peakspend-${{ steps.env.outputs.environment }}-mlflow
+          docker build -t $ECR_REPO:latest -t $ECR_REPO:${{ github.sha }} -f infrastructure/mlflow/Dockerfile infrastructure/mlflow/
+          docker push $ECR_REPO:latest
+          docker push $ECR_REPO:${{ github.sha }}
+
+      - name: Build and Push Workers
+        if: steps.env.outputs.service == 'all' || steps.env.outputs.service == 'workers'
+        run: |
+          ECR_REPO=${{ steps.account.outputs.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/peakspend-${{ steps.env.outputs.environment }}-workers
+          docker build -t $ECR_REPO:latest -t $ECR_REPO:${{ github.sha }} -f backend/Dockerfile.worker backend/
+          docker push $ECR_REPO:latest
+          docker push $ECR_REPO:${{ github.sha }}
+
+      - name: Force ECS service update
+        run: |
+          CLUSTER=peakspend-${{ steps.env.outputs.environment }}
+
+          if [[ "${{ steps.env.outputs.service }}" == "all" || "${{ steps.env.outputs.service }}" == "ml-service" ]]; then
+            aws ecs update-service --cluster $CLUSTER --service ml-service --force-new-deployment
+          fi
+
+          if [[ "${{ steps.env.outputs.service }}" == "all" || "${{ steps.env.outputs.service }}" == "mlflow" ]]; then
+            aws ecs update-service --cluster $CLUSTER --service mlflow --force-new-deployment
+          fi
+
+          if [[ "${{ steps.env.outputs.service }}" == "all" || "${{ steps.env.outputs.service }}" == "workers" ]]; then
+            aws ecs update-service --cluster $CLUSTER --service workers --force-new-deployment
+          fi
