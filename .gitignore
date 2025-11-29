@@ -8,6 +8,7 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+.env.*
 
 # Build outputs
 dist/
@@ -57,3 +58,9 @@ temp/
 
 # Documentation
 docs/
+
+# infrastructure
+infrastructure/
+
+# scripts
+scripts/
