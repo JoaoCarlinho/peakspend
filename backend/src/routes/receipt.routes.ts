@@ -93,7 +93,7 @@ router.use((err: Error, _req: Request, res: Response, _next: NextFunction): void
     return;
   }
 
-  res.status(500).json({ message: 'File upload failed' });
+  res.status(500).json({ message: `File upload failed ${err.message}` });
 });
 
 /**
