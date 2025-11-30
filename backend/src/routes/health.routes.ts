@@ -92,7 +92,7 @@ router.get('/health/ready', async (_req: Request, res: Response) => {
     await prisma.$queryRaw`SELECT 1`;
     res.status(200).json({ ready: true });
   } catch (error) {
-    res.status(503).json({ ready: false, error: 'Database connection failed' });
+    res.status(503).json({ ready: false, error: `Database connection failed ${error}` });
   }
 });
 
