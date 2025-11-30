@@ -59,7 +59,13 @@ export class TrainingDataController {
       const userId = req.user!.id;
       const { limit, offset, feedbackType, startDate, endDate } = req.query;
 
-      const options: any = {};
+      const options: {
+        limit?: number;
+        offset?: number;
+        feedbackType?: string;
+        startDate?: Date;
+        endDate?: Date;
+      } = {};
       if (limit) options.limit = parseInt(limit as string);
       if (offset) options.offset = parseInt(offset as string);
       if (feedbackType) options.feedbackType = feedbackType;

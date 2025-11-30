@@ -10,7 +10,7 @@ export function monitoringMiddleware(req: Request, res: Response, next: NextFunc
   const requestId = req.headers['x-request-id'] as string || `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   // Add request ID to request object for downstream use
-  (req as any).requestId = requestId;
+  req.requestId = requestId;
 
   // Log incoming request
   logger.info('Incoming request', {
@@ -78,7 +78,7 @@ export function errorLoggingMiddleware(
   _res: Response,
   next: NextFunction
 ): void {
-  const requestId = (req as any).requestId || 'unknown';
+  const requestId = req.requestId || 'unknown';
 
   logger.error('Unhandled error', {
     requestId,

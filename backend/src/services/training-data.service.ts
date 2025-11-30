@@ -1,4 +1,4 @@
-import { PrismaClient, TrainingData, FeedbackType } from '../generated/prisma/client';
+import { PrismaClient, TrainingData, FeedbackType, Prisma } from '../generated/prisma/client';
 import logger from '../config/logger';
 
 export interface RecordFeedbackInput {
@@ -97,7 +97,7 @@ export class TrainingDataService {
   ): Promise<TrainingData[]> {
     const { limit = 100, offset = 0, feedbackType, startDate, endDate } = options;
 
-    const where: any = { userId };
+    const where: Prisma.TrainingDataWhereInput = { userId };
 
     if (feedbackType) {
       where.feedbackType = feedbackType;

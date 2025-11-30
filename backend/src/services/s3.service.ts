@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, S3ClientConfig } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 import logger from '../config/logger';
@@ -24,7 +24,7 @@ export class S3Service {
     // Public endpoint for browser access (replaces internal Docker hostname with localhost)
     this.publicEndpoint = process.env['S3_PUBLIC_ENDPOINT']; // e.g., http://localhost:9000
 
-    const s3Config: any = {
+    const s3Config: S3ClientConfig = {
       region,
       credentials: {
         accessKeyId: process.env['AWS_ACCESS_KEY_ID'] || '',

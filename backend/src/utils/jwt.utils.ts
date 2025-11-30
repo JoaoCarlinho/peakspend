@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 
 export interface JwtPayload {
   userId: string;
@@ -14,10 +14,10 @@ const JWT_EXPIRES_IN = process.env['JWT_EXPIRES_IN'] || '24h';
  * @returns Signed JWT token string
  */
 export function signToken(payload: JwtPayload): string {
-  // Cast to any to avoid strict type checking on expiresIn
-  return jwt.sign(payload, JWT_SECRET, {
+  const options: SignOptions = {
     expiresIn: JWT_EXPIRES_IN,
-  } as any);
+  };
+  return jwt.sign(payload, JWT_SECRET, options);
 }
 
 /**

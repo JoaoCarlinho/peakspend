@@ -17,6 +17,7 @@ declare global {
       validatedQuery?: Record<string, unknown>;
       validatedParams?: Record<string, unknown>;
       validatedBody?: unknown;
+      requestId?: string;
     }
   }
 }
