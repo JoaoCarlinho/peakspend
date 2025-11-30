@@ -9,6 +9,22 @@ on:
 jobs:
   test-backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_DB: peakspend
+          POSTGRES_USER: dev
+          POSTGRES_PASSWORD: devpassword
+        ports:
+          - "5432:5432"
+        volumes:
+          - postgres_data:/var/lib/postgresql/data
+        options:
+          --health-cmd pg_isready
+          --health-interval 10s
+          --heatlh-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +41,8 @@ jobs:
         run: cd backend && npm run lint
 
       - name: Run tests
+        env:
+          DATABASE_URL: postgres://dev:devpassword@localhost:5432/peakspend
         run: cd backend && npm test
 
       - name: Upload coverage
