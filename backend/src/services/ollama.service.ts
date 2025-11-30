@@ -50,7 +50,10 @@ export class OllamaService {
   private client: AxiosInstance;
   private defaultModel: string;
 
-  constructor(baseUrl: string = 'http://localhost:11434', defaultModel: string = 'llama3.2') {
+  constructor(
+    baseUrl: string = process.env['OLLAMA_BASE_URL'] || 'http://localhost:11434',
+    defaultModel: string = process.env['OLLAMA_MODEL'] || 'llama3.2'
+  ) {
     this.defaultModel = defaultModel;
     this.client = axios.create({
       baseURL: baseUrl,
@@ -63,13 +66,21 @@ export class OllamaService {
 
   /**
    * Check if Ollama service is available
+   * Can be disabled via OLLAMA_ENABLED=false environment variable
    */
   async isAvailable(): Promise<boolean> {
+    // Skip Ollama entirely if explicitly disabled (e.g., in AWS where Ollama isn't deployed)
+    if (process.env['OLLAMA_ENABLED'] === 'false') {
+      return false;
+    }
+
     try {
       const response = await this.client.get('/api/tags');
       return response.status === 200;
     } catch (error) {
-      console.warn('Ollama service not available:', error);
+      // Log concise message instead of entire error object
+      const message = error instanceof Error ? error.message : 'Connection failed';
+      console.warn(`Ollama service not available: ${message}`);
       return false;
     }
   }
