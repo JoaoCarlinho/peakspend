@@ -9,7 +9,7 @@ const router = Router();
  * GET /health
  * Basic health check endpoint
  */
-router.get('/health', async (req: Request, res: Response) => {
+router.get('/health', async (_req: Request, res: Response) => {
   try {
     const prisma = getPrismaClient();
 
@@ -37,7 +37,7 @@ router.get('/health', async (req: Request, res: Response) => {
  * GET /health/detailed
  * Detailed health check with all system components
  */
-router.get('/health/detailed', async (req: Request, res: Response) => {
+router.get('/health/detailed', async (_req: Request, res: Response) => {
   const checks = {
     database: false,
     uptime: process.uptime(),
@@ -66,7 +66,7 @@ router.get('/health/detailed', async (req: Request, res: Response) => {
  * GET /health/metrics
  * Application metrics endpoint
  */
-router.get('/health/metrics', (req: Request, res: Response) => {
+router.get('/health/metrics', (_req: Request, res: Response) => {
   try {
     const metrics = MetricsCollector.getSummary();
     res.status(200).json({
@@ -86,7 +86,7 @@ router.get('/health/metrics', (req: Request, res: Response) => {
  * GET /health/ready
  * Readiness probe for Kubernetes/ECS
  */
-router.get('/health/ready', async (req: Request, res: Response) => {
+router.get('/health/ready', async (_req: Request, res: Response) => {
   try {
     const prisma = getPrismaClient();
     await prisma.$queryRaw`SELECT 1`;
@@ -100,7 +100,7 @@ router.get('/health/ready', async (req: Request, res: Response) => {
  * GET /health/live
  * Liveness probe for Kubernetes/ECS
  */
-router.get('/health/live', (req: Request, res: Response) => {
+router.get('/health/live', (_req: Request, res: Response) => {
   // Simple liveness check - service is running
   res.status(200).json({ alive: true });
 });

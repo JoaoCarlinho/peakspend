@@ -91,7 +91,7 @@ export class OcrService {
       'CVS Pharmacy',
       'Home Depot',
     ];
-    const randomMerchant = merchants[Math.floor(Math.random() * merchants.length)];
+    const randomMerchant = merchants[Math.floor(Math.random() * merchants.length)] ?? 'Unknown Merchant';
     const randomAmount = (Math.random() * 150 + 10).toFixed(2);
     const randomDate = new Date(
       Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000

@@ -42,7 +42,7 @@ export class MetricsCollector {
     this.metrics.requests.push(metrics);
 
     // In production, send to CloudWatch Metrics
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env['NODE_ENV'] === 'production') {
       logger.debug('Request metrics', {
         namespace: 'PeakSpend/API',
         metric: 'RequestDuration',
@@ -68,7 +68,7 @@ export class MetricsCollector {
   static recordError(metrics: ErrorMetrics): void {
     this.metrics.errors.push(metrics);
 
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env['NODE_ENV'] === 'production') {
       logger.debug('Error metrics', {
         namespace: 'PeakSpend/Errors',
         metric: 'ErrorCount',
@@ -92,7 +92,7 @@ export class MetricsCollector {
   static recordMLOperation(metrics: MLMetrics): void {
     this.metrics.mlOperations.push(metrics);
 
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env['NODE_ENV'] === 'production') {
       logger.debug('ML operation metrics', {
         namespace: 'PeakSpend/ML',
         metric: 'MLOperationDuration',
@@ -120,7 +120,7 @@ export class MetricsCollector {
 
     // Recent requests (last 5 minutes)
     const recentRequests = this.metrics.requests.filter(
-      (r) => now - fiveMinutesAgo < 5 * 60 * 1000
+      (_r) => now - fiveMinutesAgo < 5 * 60 * 1000
     );
 
     const totalRequests = recentRequests.length;

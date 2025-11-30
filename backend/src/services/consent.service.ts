@@ -26,9 +26,15 @@ export class ConsentService {
   }
 
   async updateConsent(userId: string, consent: UpdateConsentInput) {
+    // Filter out undefined values to satisfy Prisma's exactOptionalPropertyTypes
+    const data: Record<string, boolean> = {};
+    if (consent.marketingConsent !== undefined) data['marketingConsent'] = consent.marketingConsent;
+    if (consent.analyticsConsent !== undefined) data['analyticsConsent'] = consent.analyticsConsent;
+    if (consent.mlTrainingConsent !== undefined) data['mlTrainingConsent'] = consent.mlTrainingConsent;
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: consent,
+      data,
       select: {
         marketingConsent: true,
         analyticsConsent: true,

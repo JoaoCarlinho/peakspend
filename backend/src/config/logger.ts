@@ -1,12 +1,12 @@
 import winston from 'winston';
 import WinstonCloudWatch from 'winston-cloudwatch';
 
-const isProduction = process.env.NODE_ENV === 'production';
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isProduction = process.env['NODE_ENV'] === 'production';
+const isDevelopment = process.env['NODE_ENV'] === 'development';
 
 // Create base logger configuration
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env['LOG_LEVEL'] || 'info',
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
@@ -14,7 +14,7 @@ const logger = winston.createLogger({
   ),
   defaultMeta: {
     service: 'peakspend-backend',
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env['NODE_ENV'] || 'development',
   },
   transports: [],
 });
@@ -40,13 +40,13 @@ logger.add(
 );
 
 // CloudWatch transport (production only)
-if (isProduction && process.env.AWS_REGION) {
+if (isProduction && process.env['AWS_REGION']) {
   try {
     logger.add(
       new WinstonCloudWatch({
         logGroupName: '/peakspend/backend',
-        logStreamName: `${process.env.NODE_ENV}-${new Date().toISOString().split('T')[0]}`,
-        awsRegion: process.env.AWS_REGION || 'us-east-1',
+        logStreamName: `${process.env['NODE_ENV']}-${new Date().toISOString().split('T')[0]}`,
+        awsRegion: process.env['AWS_REGION'] || 'us-east-1',
         messageFormatter: (logObject) => JSON.stringify(logObject),
         retentionInDays: 90,
       })

@@ -5,8 +5,8 @@ export interface JwtPayload {
   email: string;
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-key';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const JWT_SECRET = process.env['JWT_SECRET'] || 'dev-secret-key';
+const JWT_EXPIRES_IN = process.env['JWT_EXPIRES_IN'] || '24h';
 
 /**
  * Signs a JWT token with user payload

@@ -389,7 +389,7 @@ export class ExpenseService {
     // Data rows
     for (const expense of expenses) {
       const date = expense.date.toISOString().split('T')[0]; // YYYY-MM-DD
-      const merchant = this.escapeCsvField(expense.merchant);
+      const merchant = expense.merchant ? this.escapeCsvField(expense.merchant) : '';
       const amount = expense.amount.toFixed(2);
       const category = expense.category ? this.escapeCsvField(expense.category.name) : '';
       const notes = expense.notes ? this.escapeCsvField(expense.notes) : '';

@@ -2,13 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import { CloudWatch, StandardUnit, MetricDatum } from '@aws-sdk/client-cloudwatch';
 import logger from '../config/logger';
 
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env['NODE_ENV'] === 'production';
 
 let cloudwatch: CloudWatch | null = null;
 
-if (isProduction && process.env.AWS_REGION) {
+if (isProduction && process.env['AWS_REGION']) {
   try {
-    cloudwatch = new CloudWatch({ region: process.env.AWS_REGION });
+    cloudwatch = new CloudWatch({ region: process.env['AWS_REGION'] });
     logger.info('CloudWatch metrics client initialized');
   } catch (error) {
     logger.warn('Failed to initialize CloudWatch metrics client', { error });

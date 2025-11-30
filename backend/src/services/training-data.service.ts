@@ -23,7 +23,7 @@ export interface TrainingDataStats {
 export interface PreparedDataset {
   expenses: Array<{
     id: string;
-    merchant: string;
+    merchant: string | null;
     amount: number;
     date: Date;
     category: string;
@@ -65,7 +65,7 @@ export class TrainingDataService {
       data: {
         userId: data.userId,
         expenseId: data.expenseId,
-        predictedCategory: data.predictedCategory,
+        predictedCategory: data.predictedCategory ?? null,
         actualCategory: data.actualCategory,
         feedbackType: data.feedbackType,
         timestamp: new Date(),
@@ -165,8 +165,8 @@ export class TrainingDataService {
       correctedCount,
       categoryCounts,
       averageConfidence: null, // Not storing confidence in DB yet
-      oldestSample: timestamps[0],
-      newestSample: timestamps[timestamps.length - 1],
+      oldestSample: timestamps[0] ?? null,
+      newestSample: timestamps[timestamps.length - 1] ?? null,
     };
   }
 
@@ -290,7 +290,7 @@ export class TrainingDataService {
     const rows = dataset.expenses.map((expense) => {
       return [
         expense.id,
-        `"${expense.merchant.replace(/"/g, '""')}"`, // Escape quotes
+        expense.merchant ? `"${expense.merchant.replace(/"/g, '""')}"` : '', // Escape quotes
         expense.amount,
         expense.date.toISOString(),
         `"${expense.category.replace(/"/g, '""')}"`,

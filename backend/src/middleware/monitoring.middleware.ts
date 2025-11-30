@@ -75,7 +75,7 @@ export function monitoringMiddleware(req: Request, res: Response, next: NextFunc
 export function errorLoggingMiddleware(
   err: Error,
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): void {
   const requestId = (req as any).requestId || 'unknown';
