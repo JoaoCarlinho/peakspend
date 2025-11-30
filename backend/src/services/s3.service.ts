@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
+import logger from '../config/logger';
 
 /**
  * S3 Service
@@ -35,12 +36,12 @@ export class S3Service {
     if (endpoint) {
       s3Config.endpoint = endpoint;
       s3Config.forcePathStyle = forcePathStyle;
-      console.log(`📦 S3Service: Using custom endpoint ${endpoint} (MinIO/LocalStack mode)`);
+      logger.info(`📦 S3Service: Using custom endpoint ${endpoint} (MinIO/LocalStack mode)`);
 
       // If no public endpoint specified, auto-convert minio:9000 to localhost:9000
       if (!this.publicEndpoint && endpoint.includes('minio:')) {
         this.publicEndpoint = endpoint.replace('minio:', 'localhost:');
-        console.log(`📦 S3Service: Public endpoint auto-configured as ${this.publicEndpoint}`);
+        logger.info(`📦 S3Service: Public endpoint auto-configured as ${this.publicEndpoint}`);
       }
     }
 
@@ -101,7 +102,7 @@ export class S3Service {
       const internalHost = new URL(process.env['S3_ENDPOINT'] || '').host;
       const publicHost = new URL(this.publicEndpoint).host;
       signedUrl = signedUrl.replace(internalHost, publicHost);
-      console.log(`📦 S3Service: Converted signed URL to use public endpoint`);
+      logger.info(`📦 S3Service: Converted signed URL to use public endpoint`);
     }
 
     return signedUrl;

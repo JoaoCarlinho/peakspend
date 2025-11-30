@@ -3,6 +3,7 @@ import {
   AnalyzeExpenseCommand,
   AnalyzeExpenseCommandInput,
 } from '@aws-sdk/client-textract';
+import logger from '../config/logger';
 
 export interface OcrResult {
   merchant?: string;
@@ -78,7 +79,7 @@ export class OcrService {
    * Extracts basic info from filename and returns simulated data
    */
   private generateMockOcrResult(s3Key: string): OcrResult {
-    console.log(`📄 Mock OCR: Generating simulated data for ${s3Key}`);
+    logger.info(`📄 Mock OCR: Generating simulated data for ${s3Key}`);
 
     // Generate semi-realistic mock data
     const merchants = [
