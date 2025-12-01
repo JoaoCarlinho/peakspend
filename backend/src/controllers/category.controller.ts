@@ -15,7 +15,11 @@ export class CategoryController {
    */
   list = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.user!.id;
+      const userId = req.userId;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
       const categories = await this.categoryService.getCategories(userId);
       res.json({ categories });
     } catch {

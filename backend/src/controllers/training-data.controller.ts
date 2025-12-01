@@ -143,6 +143,6 @@ interface Feedback {
   expenseId: string;
   predictedCategory: string;
   actualCategory: string;
-  feedbackType: string;
+  feedbackType: FeedbackType;
   confidenceScore: number;
 }
