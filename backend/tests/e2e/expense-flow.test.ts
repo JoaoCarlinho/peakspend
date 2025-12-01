@@ -113,7 +113,7 @@ describe('E2E: Complete Expense Workflow', () => {
       testCategoryId = response.body.id;
     });
 
-    it('should get a specific category by ID', async () => {
+    it('should include created category in list', async () => {
       // First create a category
       const createResponse = await request(app)
         .post('/api/categories')
@@ -127,14 +127,15 @@ describe('E2E: Complete Expense Workflow', () => {
 
       const categoryId = createResponse.body.id;
 
-      // Then fetch it
+      // Then verify it appears in the list
       const response = await request(app)
-        .get(`/api/categories/${categoryId}`)
+        .get('/api/categories')
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body.id).toBe(categoryId);
-      expect(response.body.name).toBe('Fetch Test Category');
+      const createdCategory = response.body.categories.find((c: any) => c.id === categoryId);
+      expect(createdCategory).toBeTruthy();
+      expect(createdCategory.name).toBe('Fetch Test Category');
     });
 
     it('should update a custom category', async () => {
@@ -441,7 +442,7 @@ describe('E2E: Complete Expense Workflow', () => {
       const expenseId = createResponse.body.id;
 
       const response = await request(app)
-        .put(`/api/expenses/${expenseId}`)
+        .patch(`/api/expenses/${expenseId}`)
         .set('Authorization', `Bearer ${authToken}`)
         .send({
           amount: 75,
