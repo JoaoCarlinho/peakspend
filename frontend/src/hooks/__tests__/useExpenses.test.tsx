@@ -136,7 +136,7 @@ describe('useCreateExpense', () => {
     });
 
     // Attempt to create with invalid data
-    result.current.mutate({} as any);
+    result.current.mutate({} as MutationPayload);
 
     // Should handle gracefully
     await waitFor(() => {
@@ -196,3 +196,15 @@ describe('useDeleteExpense', () => {
     });
   });
 });
+
+// Update MutationPayload to match CreateExpenseInput
+interface CreateExpenseInput {
+  merchant: string;
+  amount: number;
+  date: string;
+}
+result.current.mutate({
+  merchant: 'Test Merchant',
+  amount: 100,
+  date: '2025-11-30',
+} as CreateExpenseInput);
