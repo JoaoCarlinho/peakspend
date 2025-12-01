@@ -18,8 +18,7 @@ if (isProduction && process.env['AWS_REGION']) {
 export const metricsMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const startTime = Date.now();
 
-  res.on('finish', () => {
-    void (async () => {
+  res.on('finish', async () => {
     const duration = Date.now() - startTime;
     const statusCode = res.statusCode;
     const isError = statusCode >= 400;
@@ -81,7 +80,6 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
         logger.error('Failed to send metrics to CloudWatch', { error });
       }
     }
-    })();
   });
 
   next();

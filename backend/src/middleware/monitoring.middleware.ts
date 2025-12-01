@@ -37,12 +37,13 @@ export function monitoringMiddleware(req: Request, res: Response, next: NextFunc
     });
 
     // Collect metrics
-    MetricsCollector.recordRequest({
+    const metrics: RequestMetrics = {
       method: req.method,
       path: req.path,
       statusCode,
       duration,
-    });
+    };
+    MetricsCollector.recordRequest(metrics);
 
     // Log errors (4xx and 5xx responses)
     if (statusCode >= 400) {
@@ -95,4 +96,11 @@ export function errorLoggingMiddleware(
   });
 
   next(err);
+}
+
+interface RequestMetrics {
+  method: string;
+  path: string;
+  statusCode: number;
+  duration: number;
 }

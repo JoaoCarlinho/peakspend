@@ -17,16 +17,27 @@ export class TrainingDataController {
   async recordFeedback(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user!.id;
-      const { expenseId, predictedCategory, actualCategory, feedbackType, confidenceScore } =
-        req.body;
+      const feedbackType = req.body.feedbackType as string;
+      const validFeedbackType = FeedbackType[feedbackType as keyof typeof FeedbackType];
+      if (!validFeedbackType) {
+        throw new Error(`Invalid feedback type: ${feedbackType}`);
+      }
+      const feedback: Feedback = {
+        userId: req.user!.id,
+        expenseId: req.body.expenseId,
+        predictedCategory: req.body.predictedCategory,
+        actualCategory: req.body.actualCategory,
+        feedbackType: validFeedbackType,
+        confidenceScore: req.body.confidenceScore,
+      };
 
       const trainingData = await this.trainingDataService.recordFeedback({
         userId,
-        expenseId,
-        predictedCategory,
-        actualCategory,
-        feedbackType,
-        confidenceScore,
+        expenseId: feedback.expenseId,
+        predictedCategory: feedback.predictedCategory,
+        actualCategory: feedback.actualCategory,
+        feedbackType: feedback.feedbackType,
+        confidenceScore: feedback.confidenceScore,
       });
 
       res.status(201).json({
@@ -125,4 +136,13 @@ export class TrainingDataController {
       });
     }
   }
+}
+
+interface Feedback {
+  userId: string;
+  expenseId: string;
+  predictedCategory: string;
+  actualCategory: string;
+  feedbackType: string;
+  confidenceScore: number;
 }

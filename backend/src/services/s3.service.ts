@@ -1,7 +1,7 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { v4 as uuidv4 } from 'uuid';
 import type { S3ClientConfig } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { v4 as uuidv4 } from 'uuid';
 import logger from '../config/logger';
 
 /**
@@ -70,10 +70,6 @@ export class S3Service {
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
-      Metadata: {
-        'user-id': userId,
-        'original-filename': file.originalname,
-      },
     });
 
     await this.s3Client.send(command);
@@ -88,11 +84,6 @@ export class S3Service {
    * @returns Signed URL valid for 15 minutes
    */
   async getSignedUrl(key: string): Promise<string> {
-    const command = new GetObjectCommand({
-      Bucket: this.bucketName,
-      Key: key,
-    });
-
     // Generate signed URL with 15 minute expiration
     let signedUrl = await getSignedUrl(this.s3Client, command, {
       expiresIn: 900, // 15 minutes

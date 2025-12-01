@@ -34,3 +34,16 @@ export function verifyToken(token: string): JwtPayload {
     throw new Error('Invalid or expired token');
   }
 }
+
+interface JWTPayload {
+  userId: string;
+  email: string;
+}
+
+// Define `decodeJWT` and `token` properly
+const token = 'example-token'; // Replace with actual token source
+function decodeJWT(token: string): JWTPayload {
+  return jwt.verify(token, JWT_SECRET) as JWTPayload;
+}
+const payload: JWTPayload = decodeJWT(token);
+console.log('Decoded payload:', payload); // Use the payload variable
