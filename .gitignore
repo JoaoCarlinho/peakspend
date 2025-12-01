@@ -51,6 +51,7 @@ postgres_data/
 *.joblib
 mlruns/
 models/
+!ml-service/app/models/
 
 # Temporary files
 tmp/
