@@ -18,7 +18,7 @@ export class CategoryController {
       const userId = req.user!.id;
       const categories = await this.categoryService.getCategories(userId);
       res.json({ categories });
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: 'Failed to fetch categories' });
     }
   };
