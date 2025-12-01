@@ -45,7 +45,7 @@ jobs:
         run: npm run build
         working-directory: frontend
         env:
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
           VITE_ENV: production
 
       - name: Configure AWS credentials
