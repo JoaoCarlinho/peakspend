@@ -37,6 +37,14 @@ jobs:
       - name: Install dependencies
         run: cd backend && npm ci
 
+      - name: Generate Prisma Client
+        run: cd backend && npx prisma generate
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: postgres://dev:devpassword@localhost:5432/peakspend
+        run: cd backend && npx prisma migrate deploy
+
       - name: Run linter
         run: cd backend && npm run lint
 
