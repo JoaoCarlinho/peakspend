@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { v4 as uuidv4 } from 'uuid';
 import type { S3ClientConfig } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -112,5 +112,26 @@ export class S3Service {
     });
 
     await this.s3Client.send(command);
+  }
+
+  /**
+   * Get file from S3
+   *
+   * @param key - S3 object key
+   * @returns File data
+   */
+  async getFile(key: string): Promise<Buffer> {
+    const params = {
+      Bucket: this.bucketName,
+      Key: key,
+    };
+
+    const command = new GetObjectCommand(params);
+    const data = await this.s3Client.send(command);
+    if (!data.Body) {
+      throw new Error('No data returned from S3');
+    }
+    const bodyBuffer = Buffer.from(await data.Body.transformToByteArray());
+    return bodyBuffer;
   }
 }
