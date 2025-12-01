@@ -31,11 +31,11 @@ COPY prisma ./prisma/
 # Install production dependencies only
 RUN npm ci --only=production
 
-# Generate Prisma client in production
-RUN npx prisma generate
-
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
+
+# Copy Prisma query engine binaries (not compiled by tsc)
+COPY --from=builder /app/src/generated/prisma/*.node ./dist/generated/prisma/
 
 # Copy compiled Prisma client to src path for seed.js compatibility
 RUN mkdir -p src/generated && cp -r dist/generated/prisma src/generated/
