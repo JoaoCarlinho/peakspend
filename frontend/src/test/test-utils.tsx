@@ -51,3 +51,5 @@ export function renderWithProviders(
 ) {
   return render(ui, { wrapper: AllTheProviders, ...options });
 }
+
+// Moved non-component exports to a separate file to resolve Fast Refresh warnings
