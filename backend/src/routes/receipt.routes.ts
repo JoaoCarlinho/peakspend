@@ -4,6 +4,7 @@ import { S3Service } from '../services/s3.service';
 import { OcrService } from '../services/ocr.service';
 import { receiptService, RawOCRResult } from '../services/receipt.service';
 import { requireAuth } from '../middleware/auth.middleware';
+import logger from '../config/logger';
 
 const router = Router();
 const s3Service = new S3Service();
@@ -92,8 +93,8 @@ router.use((err: Error, _req: Request, res: Response, _next: NextFunction): void
     res.status(400).json({ message: err.message });
     return;
   }
-
-  res.status(500).json({ message: `File upload failed ${err.message}` });
+  logger.log('error', `File upload failed ${err}`);
+  res.status(500).json({ message: `File upload failed ${err}` });
 });
 
 /**
@@ -146,8 +147,8 @@ router.post(
       const rawOcrResult: RawOCRResult = {
         text: rawText,
         confidence: ocrResult.confidence.amount ||
-                   ocrResult.confidence.merchant ||
-                   ocrResult.confidence.date || 0.85,
+          ocrResult.confidence.merchant ||
+          ocrResult.confidence.date || 0.85,
         blocks: (ocrResult.lineItems || []).map(item => ({
           text: item.description,
           type: 'LINE_ITEM',
