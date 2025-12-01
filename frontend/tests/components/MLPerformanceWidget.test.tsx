@@ -2,18 +2,19 @@
  * Component tests for MLPerformanceWidget
  */
 
+import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mocked } from 'vitest';
 import axios from 'axios';
 import { MLPerformanceWidget } from '../../src/components/ml-suggestions/MLPerformanceWidget';
 
 // Mock axios
 vi.mock('axios');
-const mockedAxios = axios as jest.Mocked<typeof axios>;
+const mockedAxios = axios as Mocked<typeof axios>;
 
-// Mock AuthContext
-vi.mock('../../src/context/AuthContext', () => ({
+// Mock useAuth hook
+vi.mock('../../src/hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: 'test_user_123', email: 'test@example.com' },
   }),

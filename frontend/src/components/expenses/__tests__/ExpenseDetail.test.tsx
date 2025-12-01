@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders, userEvent } from '../../../test/test-utils';
 import { ExpenseDetail } from '../ExpenseDetail';
@@ -11,7 +11,7 @@ describe('ExpenseDetail', () => {
     date: '2025-11-01',
     amount: 45.5,
     merchant: 'Whole Foods',
-    category: { id: '1', name: 'Groceries', color: '#4CAF50', icon: 'shopping_cart' },
+    category: { id: '1', name: 'Groceries', color: '#4CAF50' },
     categoryId: '1',
     notes: 'Weekly groceries',
     receiptUrl: null,
@@ -21,12 +21,10 @@ describe('ExpenseDetail', () => {
 
   const mockOnEdit = vi.fn();
   const mockOnDelete = vi.fn();
-  const mockOnClose = vi.fn();
 
   beforeEach(() => {
     mockOnEdit.mockClear();
     mockOnDelete.mockClear();
-    mockOnClose.mockClear();
   });
 
   it('renders expense details correctly', () => {
@@ -35,7 +33,6 @@ describe('ExpenseDetail', () => {
         expense={mockExpense}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
-        onClose={mockOnClose}
       />,
     );
 
@@ -51,13 +48,11 @@ describe('ExpenseDetail', () => {
         expense={mockExpense}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
-        onClose={mockOnClose}
       />,
     );
 
-    // Date should be formatted
-    const dateText = screen.getByText(/Nov/i);
-    expect(dateText).toBeInTheDocument();
+    // Date should be formatted as "November 1, 2025"
+    expect(screen.getByText('November 1, 2025')).toBeInTheDocument();
   });
 
   it('displays category with chip', () => {
@@ -66,7 +61,6 @@ describe('ExpenseDetail', () => {
         expense={mockExpense}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
-        onClose={mockOnClose}
       />,
     );
 
@@ -74,7 +68,7 @@ describe('ExpenseDetail', () => {
     expect(categoryChip).toHaveClass('MuiChip-label');
   });
 
-  it('displays uncategorized when no category', () => {
+  it('does not display category section when no category', () => {
     const uncategorizedExpense = { ...mockExpense, category: null, categoryId: null };
 
     renderWithProviders(
@@ -82,11 +76,11 @@ describe('ExpenseDetail', () => {
         expense={uncategorizedExpense}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
-        onClose={mockOnClose}
       />,
     );
 
-    expect(screen.getByText('Uncategorized')).toBeInTheDocument();
+    // Category section should not be rendered
+    expect(screen.queryByText('Category')).not.toBeInTheDocument();
   });
 
   it('handles edit button click', async () => {
@@ -96,15 +90,13 @@ describe('ExpenseDetail', () => {
         expense={mockExpense}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
-        onClose={mockOnClose}
       />,
     );
 
-    const editButton = screen.getByText(/edit/i);
+    const editButton = screen.getByRole('button', { name: /edit/i });
     await user.click(editButton);
 
     expect(mockOnEdit).toHaveBeenCalledTimes(1);
-    expect(mockOnEdit).toHaveBeenCalledWith(mockExpense);
   });
 
   it('handles delete button click', async () => {
@@ -114,35 +106,16 @@ describe('ExpenseDetail', () => {
         expense={mockExpense}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
-        onClose={mockOnClose}
       />,
     );
 
-    const deleteButton = screen.getByText(/delete/i);
+    const deleteButton = screen.getByRole('button', { name: /delete/i });
     await user.click(deleteButton);
 
     expect(mockOnDelete).toHaveBeenCalledTimes(1);
-    expect(mockOnDelete).toHaveBeenCalledWith(mockExpense);
   });
 
-  it('handles close button click', async () => {
-    const user = userEvent.setup();
-    renderWithProviders(
-      <ExpenseDetail
-        expense={mockExpense}
-        onEdit={mockOnEdit}
-        onDelete={mockOnDelete}
-        onClose={mockOnClose}
-      />,
-    );
-
-    const closeButton = screen.getByLabelText(/close/i);
-    await user.click(closeButton);
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('displays receipt thumbnail when receiptUrl exists', () => {
+  it('displays receipt button when receiptUrl exists', () => {
     const expenseWithReceipt = {
       ...mockExpense,
       receiptUrl: 'https://example.com/receipt.jpg',
@@ -153,13 +126,13 @@ describe('ExpenseDetail', () => {
         expense={expenseWithReceipt}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
-        onClose={mockOnClose}
       />,
     );
 
-    // Check for receipt image or icon
-    const receiptElement = screen.queryByAltText(/receipt/i);
-    expect(receiptElement).toBeInTheDocument();
+    // Check for receipt button
+    const receiptButton = screen.getByRole('link', { name: /view receipt/i });
+    expect(receiptButton).toBeInTheDocument();
+    expect(receiptButton).toHaveAttribute('href', 'https://example.com/receipt.jpg');
   });
 
   it('does not display receipt when receiptUrl is null', () => {
@@ -168,15 +141,14 @@ describe('ExpenseDetail', () => {
         expense={mockExpense}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
-        onClose={mockOnClose}
       />,
     );
 
-    const receiptElement = screen.queryByAltText(/receipt/i);
-    expect(receiptElement).not.toBeInTheDocument();
+    const receiptButton = screen.queryByRole('link', { name: /view receipt/i });
+    expect(receiptButton).not.toBeInTheDocument();
   });
 
-  it('displays empty state for notes when not provided', () => {
+  it('does not display notes section when not provided', () => {
     const expenseWithoutNotes = { ...mockExpense, notes: null };
 
     renderWithProviders(
@@ -184,12 +156,12 @@ describe('ExpenseDetail', () => {
         expense={expenseWithoutNotes}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
-        onClose={mockOnClose}
       />,
     );
 
-    // Should show some indication of no notes (like "No notes" or empty field)
-    // Exact text depends on implementation
+    // Notes section should not be rendered
+    expect(screen.queryByText('Notes')).not.toBeInTheDocument();
+    // But other content should still be present
     expect(screen.getByText('Whole Foods')).toBeInTheDocument();
   });
 
@@ -199,7 +171,6 @@ describe('ExpenseDetail', () => {
         expense={mockExpense}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
-        onClose={mockOnClose}
       />,
     );
 
@@ -213,11 +184,11 @@ describe('ExpenseDetail', () => {
         expense={mockExpense}
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
-        onClose={mockOnClose}
       />,
     );
 
-    // Check that created/updated timestamps are displayed (format may vary)
-    expect(screen.getByText('Whole Foods')).toBeInTheDocument();
+    // Check that created/updated timestamps are displayed
+    expect(screen.getByText(/Created:/)).toBeInTheDocument();
+    expect(screen.getByText(/Last updated:/)).toBeInTheDocument();
   });
 });

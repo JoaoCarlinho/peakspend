@@ -1,7 +1,11 @@
 import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
-import { afterEach, beforeAll, afterAll } from 'vitest';
+import { afterEach, beforeAll, afterAll, vi } from 'vitest';
 import { server } from './mocks/server';
+
+// Set environment variables for tests to match MSW mock handlers
+vi.stubEnv('VITE_API_URL', 'http://localhost:3000');
+vi.stubEnv('VITE_ML_API_BASE_URL', 'http://localhost:8000');
 
 // Start MSW server before all tests
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));

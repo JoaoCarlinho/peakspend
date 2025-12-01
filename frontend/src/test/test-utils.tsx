@@ -3,8 +3,31 @@ import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { AuthContext } from '../context/AuthContext';
+import type { AuthContextType, User } from '../context/AuthContext';
+import userEvent from '@testing-library/user-event';
 
 const theme = createTheme();
+
+// Mock user for testing
+const mockUser: User = {
+  id: 'test-user-123',
+  email: 'test@example.com',
+  name: 'Test User',
+  createdAt: '2025-01-01T00:00:00Z',
+};
+
+// Mock auth context value
+const mockAuthContext: AuthContextType = {
+  user: mockUser,
+  loading: false,
+  login: async () => {},
+  register: async () => {},
+  logout: () => {},
+  isAuthenticated: true,
+};
+
+export { userEvent };
 
 /**
  * Create a new QueryClient instance for each test
@@ -35,9 +58,11 @@ export function AllTheProviders({ children }: AllTheProvidersProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
-        <BrowserRouter>{children}</BrowserRouter>
-      </ThemeProvider>
+      <AuthContext.Provider value={mockAuthContext}>
+        <ThemeProvider theme={theme}>
+          <BrowserRouter>{children}</BrowserRouter>
+        </ThemeProvider>
+      </AuthContext.Provider>
     </QueryClientProvider>
   );
 }
@@ -51,5 +76,3 @@ export function renderWithProviders(
 ) {
   return render(ui, { wrapper: AllTheProviders, ...options });
 }
-
-// Moved non-component exports to a separate file to resolve Fast Refresh warnings
