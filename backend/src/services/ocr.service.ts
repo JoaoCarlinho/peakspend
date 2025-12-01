@@ -28,9 +28,12 @@ export class OcrService {
     this.s3BucketName = process.env['S3_BUCKET_NAME'] || 'peakspend-receipts-dev';
     const accessKeyId = process.env['AWS_ACCESS_KEY_ID'] || '';
     const secretAccessKey = process.env['AWS_SECRET_ACCESS_KEY'] || '';
+    const isTestEnv = process.env['NODE_ENV'] === 'test';
 
-    // Check if AWS credentials are properly configured for Textract
+    // Always use mock OCR in test environment
+    // Also use mock if AWS credentials are not properly configured
     if (
+      isTestEnv ||
       !accessKeyId ||
       !secretAccessKey ||
       accessKeyId === 'minioadmin' ||
@@ -38,10 +41,12 @@ export class OcrService {
       accessKeyId === 'your-access-key' ||
       secretAccessKey === 'your-secret-key'
     ) {
-      console.warn(
-        '⚠️  AWS Textract credentials not configured. Using mock OCR for development. ' +
-          'Receipt processing will return simulated data.'
-      );
+      if (!isTestEnv) {
+        console.warn(
+          '⚠️  AWS Textract credentials not configured. Using mock OCR for development. ' +
+            'Receipt processing will return simulated data.'
+        );
+      }
       this.useMockOcr = true;
     } else {
       this.textractClient = new TextractClient({
@@ -75,13 +80,15 @@ export class OcrService {
   }
 
   /**
-   * Generate mock OCR result for development
+   * Generate mock OCR result for development and testing
    * Extracts basic info from filename and returns simulated data
+   * Provides consistent, predictable results for testing
    */
   private generateMockOcrResult(s3Key: string): OcrResult {
     logger.info(`📄 Mock OCR: Generating simulated data for ${s3Key}`);
 
     // Generate semi-realistic mock data
+    // Use deterministic selection based on s3Key for consistent test results
     const merchants = [
       'Whole Foods Market',
       'Starbucks Coffee',
@@ -92,26 +99,40 @@ export class OcrService {
       'CVS Pharmacy',
       'Home Depot',
     ];
-    const randomMerchant = merchants[Math.floor(Math.random() * merchants.length)] ?? 'Unknown Merchant';
-    const randomAmount = (Math.random() * 150 + 10).toFixed(2);
+    
+    // Use hash of s3Key for deterministic selection in tests
+    const keyHash = s3Key.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const merchantIndex = keyHash % merchants.length;
+    const randomMerchant = merchants[merchantIndex] ?? 'Unknown Merchant';
+    
+    // Generate deterministic amount based on key hash
+    const baseAmount = 10 + (keyHash % 140); // Amount between 10 and 150
+    const randomAmount = baseAmount.toFixed(2);
+    
+    // Generate date within last 30 days, deterministic based on key
+    const daysAgo = keyHash % 30;
     const randomDate = new Date(
-      Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000
+      Date.now() - daysAgo * 24 * 60 * 60 * 1000
     ).toISOString();
+
+    const amount = parseFloat(randomAmount);
+    const item1Amount = parseFloat((amount * 0.6).toFixed(2));
+    const item2Amount = parseFloat((amount * 0.4).toFixed(2));
 
     return {
       merchant: randomMerchant,
       date: randomDate,
-      amount: parseFloat(randomAmount),
+      amount: amount,
       lineItems: [
-        { description: 'Item 1', amount: parseFloat((parseFloat(randomAmount) * 0.6).toFixed(2)) },
-        { description: 'Item 2', amount: parseFloat((parseFloat(randomAmount) * 0.4).toFixed(2)) },
+        { description: 'Item 1', amount: item1Amount },
+        { description: 'Item 2', amount: item2Amount },
       ],
       confidence: {
         merchant: 0.85,
         date: 0.90,
         amount: 0.95,
       },
-      rawData: { mock: true, s3Key },
+      rawData: { mock: true, s3Key, test: process.env['NODE_ENV'] === 'test' },
     };
   }
 

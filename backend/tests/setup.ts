@@ -9,6 +9,10 @@ process.env.JWT_SECRET = 'test-secret-key';
 process.env.AWS_REGION = 'us-east-1';
 process.env.S3_BUCKET_NAME = 'test-bucket';
 
+// Ensure OCR mock is used in tests (clear any AWS credentials)
+process.env.AWS_ACCESS_KEY_ID = '';
+process.env.AWS_SECRET_ACCESS_KEY = '';
+
 // Extend Jest timeout for integration tests
 jest.setTimeout(10000);
 

@@ -12,6 +12,7 @@
 import request from 'supertest';
 import app from '../../src/app';
 import { PrismaClient } from '../../src/generated/prisma/client';
+import { signToken } from '../../src/utils/jwt.utils';
 
 // Ensure DATABASE_URL is set for test database
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://supertutors:devpassword@localhost:5432/peakspend_test';
@@ -27,6 +28,8 @@ const prisma = new PrismaClient({
 
 describe('Integration Tests: API Contracts', () => {
   let testUserId: string;
+  let testUserEmail: string;
+  let authToken: string;
   let testCategoryId: string;
   let testExpenseId: string;
 
@@ -34,14 +37,21 @@ describe('Integration Tests: API Contracts', () => {
     await prisma.$connect();
 
     // Create test user
+    testUserEmail = `integration-test-${Date.now()}@example.com`;
     const user = await prisma.user.create({
       data: {
-        email: `integration-test-${Date.now()}@example.com`,
+        email: testUserEmail,
         passwordHash: 'testpassword123',
         name: 'Integration Test User',
       },
     });
     testUserId = user.id;
+
+    // Generate JWT token for authentication
+    authToken = signToken({
+      userId: testUserId,
+      email: testUserEmail,
+    });
 
     // Ensure we have default categories
     const defaultCategories = await prisma.category.findMany({
@@ -72,17 +82,21 @@ describe('Integration Tests: API Contracts', () => {
   });
 
   afterEach(async () => {
-    // Clean up expenses after each test
+    // Clean up expenses and categories after each test
     if (testUserId) {
       await prisma.expense.deleteMany({ where: { userId: testUserId } });
+      await prisma.category.deleteMany({ where: { userId: testUserId, isDefault: false } });
+      await prisma.trainingData.deleteMany({ where: { userId: testUserId } });
     }
+    testCategoryId = undefined as any;
+    testExpenseId = undefined as any;
   });
 
   describe('AC-1: Category API Integration', () => {
     it('should validate category schema on creation', async () => {
       const response = await request(app)
         .post('/api/categories')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           name: 'Valid Category',
           color: '#FF5733',
@@ -122,7 +136,7 @@ describe('Integration Tests: API Contracts', () => {
       // Try to create duplicate
       const response = await request(app)
         .post('/api/categories')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           name: 'Unique Category',
           color: '#111111',
@@ -148,7 +162,7 @@ describe('Integration Tests: API Contracts', () => {
 
       const response = await request(app)
         .get('/api/categories')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ page: 1, limit: 3 })
         .expect(200);
 
@@ -160,10 +174,15 @@ describe('Integration Tests: API Contracts', () => {
 
   describe('AC-1: Expense API Integration', () => {
     beforeEach(async () => {
+      // Clean up any existing test categories first
+      await prisma.category.deleteMany({
+        where: { userId: testUserId, name: 'Test Category' },
+      });
+      
       // Create a test category
       const category = await prisma.category.create({
         data: {
-          name: 'Test Category',
+          name: `Test Category ${Date.now()}`,
           color: '#123456',
           userId: testUserId,
           isDefault: false,
@@ -184,7 +203,7 @@ describe('Integration Tests: API Contracts', () => {
 
       const response = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(expenseData)
         .expect(201);
 
@@ -212,7 +231,7 @@ describe('Integration Tests: API Contracts', () => {
     it('should reject expense with invalid amount', async () => {
       const response = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: -100, // Invalid: negative
@@ -228,7 +247,7 @@ describe('Integration Tests: API Contracts', () => {
     it('should reject expense with missing required fields', async () => {
       const response = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           // Missing: amount, merchant, categoryId
@@ -267,7 +286,7 @@ describe('Integration Tests: API Contracts', () => {
       // Filter by date range
       const response = await request(app)
         .get('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({
           userId: testUserId,
           startDate: today.toISOString().split('T')[0],
@@ -294,12 +313,12 @@ describe('Integration Tests: API Contracts', () => {
       // Attempt concurrent updates
       const update1Promise = request(app)
         .put(`/api/expenses/${expense.id}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({ amount: 150 });
 
       const update2Promise = request(app)
         .put(`/api/expenses/${expense.id}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({ amount: 200 });
 
       await Promise.all([update1Promise, update2Promise]);
@@ -316,9 +335,14 @@ describe('Integration Tests: API Contracts', () => {
 
   describe('AC-2: Database Constraints and Transactions', () => {
     beforeEach(async () => {
+      // Clean up any existing test categories first
+      await prisma.category.deleteMany({
+        where: { userId: testUserId, name: { startsWith: 'Transaction Test Category' } },
+      });
+      
       const category = await prisma.category.create({
         data: {
-          name: 'Transaction Test Category',
+          name: `Transaction Test Category ${Date.now()}`,
           color: '#ABCDEF',
           userId: testUserId,
           isDefault: false,
@@ -330,7 +354,7 @@ describe('Integration Tests: API Contracts', () => {
     it('should enforce foreign key constraints', async () => {
       const response = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: 50,
@@ -363,17 +387,13 @@ describe('Integration Tests: API Contracts', () => {
           predictedCategory: testCategoryId,
           actualCategory: testCategoryId,
           feedbackType: 'ACCEPT',
-          merchant: 'Cascade Test',
-          amount: 75,
-          date: new Date(),
-          confidence: 0.95,
         },
       });
 
       // Delete expense
       await request(app)
         .delete(`/api/expenses/${expense.id}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(204);
 
       // Verify expense is deleted
@@ -405,7 +425,7 @@ describe('Integration Tests: API Contracts', () => {
       // Delete the category
       await request(app)
         .delete(`/api/categories/${testCategoryId}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(204);
 
       // Check expense - categoryId should be null
@@ -419,23 +439,26 @@ describe('Integration Tests: API Contracts', () => {
 
   describe('AC-3: ML Service Integration', () => {
     beforeEach(async () => {
-      if (!testCategoryId) {
-        const category = await prisma.category.create({
-          data: {
-            name: 'ML Test Category',
-            color: '#FEDCBA',
-            userId: testUserId,
-            isDefault: false,
-          },
-        });
-        testCategoryId = category.id;
-      }
+      // Clean up any existing test categories first
+      await prisma.category.deleteMany({
+        where: { userId: testUserId, name: { startsWith: 'ML Test Category' } },
+      });
+      
+      const category = await prisma.category.create({
+        data: {
+          name: `ML Test Category ${Date.now()}`,
+          color: '#FEDCBA',
+          userId: testUserId,
+          isDefault: false,
+        },
+      });
+      testCategoryId = category.id;
     });
 
     it('should handle ML service category suggestions', async () => {
       const response = await request(app)
         .post('/api/ml-inference/suggest-category')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           merchant: 'Coffee Shop',
@@ -461,7 +484,7 @@ describe('Integration Tests: API Contracts', () => {
     it('should handle ML error detection gracefully', async () => {
       const response = await request(app)
         .post('/api/ml-inference/detect-errors')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           merchant: 'Test Merchant',
@@ -483,17 +506,20 @@ describe('Integration Tests: API Contracts', () => {
 
   describe('AC-6: Feedback and Training Data Integration', () => {
     beforeEach(async () => {
-      if (!testCategoryId) {
-        const category = await prisma.category.create({
-          data: {
-            name: 'Feedback Test Category',
-            color: '#112233',
-            userId: testUserId,
-            isDefault: false,
-          },
-        });
-        testCategoryId = category.id;
-      }
+      // Clean up any existing test categories first
+      await prisma.category.deleteMany({
+        where: { userId: testUserId, name: { startsWith: 'Feedback Test Category' } },
+      });
+      
+      const category = await prisma.category.create({
+        data: {
+          name: `Feedback Test Category ${Date.now()}`,
+          color: '#112233',
+          userId: testUserId,
+          isDefault: false,
+        },
+      });
+      testCategoryId = category.id;
 
       // Create test expense
       const expense = await prisma.expense.create({
@@ -511,14 +537,12 @@ describe('Integration Tests: API Contracts', () => {
     it('should record feedback and create training data', async () => {
       const response = await request(app)
         .post('/api/feedback/record')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
-          userId: testUserId,
           expenseId: testExpenseId,
           predictedCategory: testCategoryId,
           actualCategory: testCategoryId,
           feedbackType: 'ACCEPT',
-          confidence: 0.90,
         })
         .expect(201);
 
@@ -548,17 +572,13 @@ describe('Integration Tests: API Contracts', () => {
             predictedCategory: testCategoryId,
             actualCategory: testCategoryId,
             feedbackType: i < 3 ? 'ACCEPT' : 'REJECT',
-            merchant: `Merchant ${i}`,
-            amount: 10 + i,
-            date: new Date(),
-            confidence: 0.8,
           },
         });
       }
 
       const response = await request(app)
         .get('/api/feedback/stats')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ userId: testUserId, days: 30 })
         .expect(200);
 
@@ -579,7 +599,7 @@ describe('Integration Tests: API Contracts', () => {
     it('should retrieve ML accuracy metrics', async () => {
       const response = await request(app)
         .get('/api/ml-metrics/accuracy')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ userId: testUserId, days: 30 })
         .expect(200);
 
@@ -596,7 +616,7 @@ describe('Integration Tests: API Contracts', () => {
     it('should retrieve dashboard data', async () => {
       const response = await request(app)
         .get('/api/ml-metrics/dashboard')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ userId: testUserId })
         .expect(200);
 
@@ -610,26 +630,26 @@ describe('Integration Tests: API Contracts', () => {
     it('should return 404 for non-existent resources', async () => {
       await request(app)
         .get('/api/expenses/00000000-0000-0000-0000-000000000000')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
 
       await request(app)
         .get('/api/categories/00000000-0000-0000-0000-000000000000')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
     });
 
     it('should validate UUID format in route parameters', async () => {
       await request(app)
         .get('/api/expenses/invalid-uuid')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(400);
     });
 
     it('should handle malformed JSON gracefully', async () => {
       const response = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .set('Content-Type', 'application/json')
         .send('{ invalid json }')
         .expect(400);
@@ -649,7 +669,7 @@ describe('Integration Tests: API Contracts', () => {
 
       const response = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send(largePayload)
         .expect(400);
 
@@ -661,7 +681,7 @@ describe('Integration Tests: API Contracts', () => {
     it('should return healthy status', async () => {
       const response = await request(app)
         .get('/health')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toMatchObject({
@@ -673,7 +693,7 @@ describe('Integration Tests: API Contracts', () => {
     it('should handle 404 for unknown routes', async () => {
       await request(app)
         .get('/api/unknown-endpoint')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
     });
   });
