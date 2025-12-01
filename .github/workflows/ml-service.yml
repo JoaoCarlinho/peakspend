@@ -18,8 +18,10 @@ jobs:
           python-version: '3.9'
       - name: Install dependencies
         run: |
+          cd ml-service
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run tests
         run: |
+          cd ml-service
           pytest --cov=app --cov-report=xml

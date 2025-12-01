@@ -18,68 +18,72 @@ if (isProduction && process.env['AWS_REGION']) {
 export const metricsMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const startTime = Date.now();
 
-  res.on('finish', async () => {
-    const duration = Date.now() - startTime;
-    const statusCode = res.statusCode;
-    const isError = statusCode >= 400;
+  res.on('finish', () => {
+    (async () => {
+      const duration = Date.now() - startTime;
+      const statusCode = res.statusCode;
+      const isError = statusCode >= 400;
 
-    // Log request metrics
-    logger.info('Request completed', {
-      method: req.method,
-      path: req.path,
-      statusCode,
-      duration,
-      isError,
-    });
+      // Log request metrics
+      logger.info('Request completed', {
+        method: req.method,
+        path: req.path,
+        statusCode,
+        duration,
+        isError,
+      });
 
-    // Send metrics to CloudWatch (production only)
-    if (cloudwatch && isProduction) {
-      try {
-        const metricData: MetricDatum[] = [
-          {
-            MetricName: 'RequestDuration',
-            Value: duration,
-            Unit: StandardUnit.Milliseconds,
-            Timestamp: new Date(),
-            Dimensions: [
-              { Name: 'Endpoint', Value: req.path },
-              { Name: 'Method', Value: req.method },
-              { Name: 'StatusCode', Value: statusCode.toString() },
-            ],
-          },
-          {
-            MetricName: 'RequestCount',
-            Value: 1,
-            Unit: StandardUnit.Count,
-            Timestamp: new Date(),
-            Dimensions: [
-              { Name: 'Endpoint', Value: req.path },
-              { Name: 'StatusCode', Value: statusCode.toString() },
-            ],
-          },
-        ];
+      // Send metrics to CloudWatch (production only)
+      if (cloudwatch && isProduction) {
+        try {
+          const metricData: MetricDatum[] = [
+            {
+              MetricName: 'RequestDuration',
+              Value: duration,
+              Unit: StandardUnit.Milliseconds,
+              Timestamp: new Date(),
+              Dimensions: [
+                { Name: 'Endpoint', Value: req.path },
+                { Name: 'Method', Value: req.method },
+                { Name: 'StatusCode', Value: statusCode.toString() },
+              ],
+            },
+            {
+              MetricName: 'RequestCount',
+              Value: 1,
+              Unit: StandardUnit.Count,
+              Timestamp: new Date(),
+              Dimensions: [
+                { Name: 'Endpoint', Value: req.path },
+                { Name: 'StatusCode', Value: statusCode.toString() },
+              ],
+            },
+          ];
 
-        if (isError) {
-          metricData.push({
-            MetricName: 'ErrorCount',
-            Value: 1,
-            Unit: StandardUnit.Count,
-            Timestamp: new Date(),
-            Dimensions: [
-              { Name: 'Endpoint', Value: req.path },
-              { Name: 'StatusCode', Value: statusCode.toString() },
-            ],
+          if (isError) {
+            metricData.push({
+              MetricName: 'ErrorCount',
+              Value: 1,
+              Unit: StandardUnit.Count,
+              Timestamp: new Date(),
+              Dimensions: [
+                { Name: 'Endpoint', Value: req.path },
+                { Name: 'StatusCode', Value: statusCode.toString() },
+              ],
+            });
+          }
+
+          await cloudwatch.putMetricData({
+            Namespace: 'PeakSpend/API',
+            MetricData: metricData,
           });
+        } catch (error) {
+          logger.error('Failed to send metrics to CloudWatch', { error });
         }
-
-        await cloudwatch.putMetricData({
-          Namespace: 'PeakSpend/API',
-          MetricData: metricData,
-        });
-      } catch (error) {
-        logger.error('Failed to send metrics to CloudWatch', { error });
       }
-    }
+    })().catch((error) => {
+      logger.error('Error in metrics middleware', { error });
+    });
   });
 
   next();

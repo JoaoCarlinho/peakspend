@@ -84,6 +84,11 @@ export class S3Service {
    * @returns Signed URL valid for 15 minutes
    */
   async getSignedUrl(key: string): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+    });
+
     // Generate signed URL with 15 minute expiration
     let signedUrl = await getSignedUrl(this.s3Client, command, {
       expiresIn: 900, // 15 minutes
