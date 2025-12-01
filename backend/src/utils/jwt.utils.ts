@@ -1,4 +1,5 @@
-import jwt, { SignOptions } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
+import type { StringValue } from 'ms';
 
 export interface JwtPayload {
   userId: string;
@@ -6,7 +7,7 @@ export interface JwtPayload {
 }
 
 const JWT_SECRET = process.env['JWT_SECRET'] || 'dev-secret-key';
-const JWT_EXPIRES_IN = process.env['JWT_EXPIRES_IN'] || '24h';
+const JWT_EXPIRES_IN = (process.env['JWT_EXPIRES_IN'] || '24h') as StringValue;
 
 /**
  * Signs a JWT token with user payload
@@ -14,10 +15,9 @@ const JWT_EXPIRES_IN = process.env['JWT_EXPIRES_IN'] || '24h';
  * @returns Signed JWT token string
  */
 export function signToken(payload: JwtPayload): string {
-  const options: SignOptions = {
+  return jwt.sign(payload, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN,
-  };
-  return jwt.sign(payload, JWT_SECRET, options);
+  });
 }
 
 /**

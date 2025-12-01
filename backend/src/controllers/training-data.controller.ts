@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '../generated/prisma/client';
+import { PrismaClient, FeedbackType } from '../generated/prisma/client';
 import { TrainingDataService } from '../services/training-data.service';
 import logger from '../config/logger';
 
@@ -62,13 +62,16 @@ export class TrainingDataController {
       const options: {
         limit?: number;
         offset?: number;
-        feedbackType?: string;
+        feedbackType?: FeedbackType;
         startDate?: Date;
         endDate?: Date;
       } = {};
       if (limit) options.limit = parseInt(limit as string);
       if (offset) options.offset = parseInt(offset as string);
-      if (feedbackType) options.feedbackType = feedbackType;
+      if (feedbackType) {
+        const feedbackTypeStr = Array.isArray(feedbackType) ? feedbackType[0] : feedbackType;
+        options.feedbackType = feedbackTypeStr as FeedbackType;
+      }
       if (startDate) options.startDate = new Date(startDate as string);
       if (endDate) options.endDate = new Date(endDate as string);
 
