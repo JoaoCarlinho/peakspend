@@ -19,6 +19,7 @@ describe('ExpenseService', () => {
         create: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
         count: jest.fn(),
@@ -84,29 +85,30 @@ describe('ExpenseService', () => {
 
       const result = await expenseService.getExpenses('user-1', { page: 1, limit: 10 });
 
-      expect(result.expenses).toEqual(mockExpenses);
-      expect(result.total).toBe(1);
-      expect(result.page).toBe(1);
-      expect(result.limit).toBe(10);
+      expect(result.data).toEqual(mockExpenses);
+      expect(result.pagination.total).toBe(1);
+      expect(result.pagination.page).toBe(1);
+      expect(result.pagination.limit).toBe(10);
     });
   });
 
   describe('deleteExpense', () => {
     it('should delete expense and return true', async () => {
+      (prismaMock.expense.findFirst as jest.Mock).mockResolvedValue({ id: '123', userId: 'user-1', receiptUrl: null });
       (prismaMock.expense.delete as jest.Mock).mockResolvedValue({ id: '123' });
 
-      const result = await expenseService.deleteExpense('user-1', '123');
+      const result = await expenseService.deleteExpense('123', 'user-1');
 
       expect(result).toBe(true);
       expect(prismaMock.expense.delete).toHaveBeenCalledWith({
-        where: { id: '123', userId: 'user-1' },
+        where: { id: '123' },
       });
     });
 
     it('should return false if expense not found', async () => {
-      (prismaMock.expense.delete as jest.Mock).mockRejectedValue(new Error('Not found'));
+      (prismaMock.expense.findFirst as jest.Mock).mockResolvedValue(null);
 
-      const result = await expenseService.deleteExpense('user-1', '999');
+      const result = await expenseService.deleteExpense('999', 'user-1');
 
       expect(result).toBe(false);
     });

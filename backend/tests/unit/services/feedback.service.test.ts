@@ -23,6 +23,9 @@ describe('FeedbackService', () => {
       expense: {
         findMany: jest.fn(),
       },
+      mlModel: {
+        findFirst: jest.fn(),
+      },
     } as unknown as jest.Mocked<PrismaClient>;
     feedbackService = new FeedbackService(prismaMock);
   });

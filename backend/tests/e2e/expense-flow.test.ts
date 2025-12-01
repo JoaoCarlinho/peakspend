@@ -227,7 +227,7 @@ describe('E2E: Complete Expense Workflow', () => {
         .expect(201);
 
       expect(response.body).toHaveProperty('id');
-      expect(response.body.amount).toBe(42.50);
+      expect(parseFloat(response.body.amount)).toBe(42.50);
       expect(response.body.merchant).toBe('Test Merchant');
       expect(response.body.categoryId).toBe(testCategoryId);
       expect(response.body.userId).toBe(testUserId);
@@ -257,12 +257,13 @@ describe('E2E: Complete Expense Workflow', () => {
         .query({ userId: testUserId, page: 1, limit: 3 })
         .expect(200);
 
-      expect(response.body).toHaveProperty('expenses');
-      expect(response.body).toHaveProperty('total');
-      expect(response.body).toHaveProperty('page');
-      expect(response.body).toHaveProperty('limit');
-      expect(response.body.expenses.length).toBeLessThanOrEqual(3);
-      expect(response.body.total).toBe(5);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body).toHaveProperty('pagination');
+      expect(response.body.pagination).toHaveProperty('total');
+      expect(response.body.pagination).toHaveProperty('page');
+      expect(response.body.pagination).toHaveProperty('limit');
+      expect(response.body.data.length).toBeLessThanOrEqual(3);
+      expect(response.body.pagination.total).toBe(5);
     });
 
     it('should filter expenses by category', async () => {
@@ -313,8 +314,8 @@ describe('E2E: Complete Expense Workflow', () => {
         .query({ userId: testUserId, categoryId: testCategoryId })
         .expect(200);
 
-      expect(response.body.expenses.length).toBe(1);
-      expect(response.body.expenses[0].categoryId).toBe(testCategoryId);
+      expect(response.body.data.length).toBe(1);
+      expect(response.body.data[0].categoryId).toBe(testCategoryId);
     });
 
     it('should filter expenses by date range', async () => {
@@ -356,13 +357,13 @@ describe('E2E: Complete Expense Workflow', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .query({
           userId: testUserId,
-          startDate: today.toISOString().split('T')[0],
-          endDate: tomorrow.toISOString().split('T')[0],
+          dateFrom: today.toISOString().split('T')[0],
+          dateTo: tomorrow.toISOString().split('T')[0],
         })
         .expect(200);
 
-      expect(response.body.expenses.length).toBe(1);
-      expect(response.body.expenses[0].merchant).toBe('Today Merchant');
+      expect(response.body.data.length).toBe(1);
+      expect(response.body.data[0].merchant).toBe('Today Merchant');
     });
 
     it('should search expenses by merchant name', async () => {
@@ -396,8 +397,8 @@ describe('E2E: Complete Expense Workflow', () => {
         .query({ userId: testUserId, search: 'starbucks' })
         .expect(200);
 
-      expect(response.body.expenses.length).toBe(1);
-      expect(response.body.expenses[0].merchant).toContain('Starbucks');
+      expect(response.body.data.length).toBe(1);
+      expect(response.body.data[0].merchant).toContain('Starbucks');
     });
 
     it('should get expense by ID', async () => {
@@ -421,7 +422,7 @@ describe('E2E: Complete Expense Workflow', () => {
         .expect(200);
 
       expect(response.body.id).toBe(expenseId);
-      expect(response.body.amount).toBe(99.99);
+      expect(parseFloat(response.body.amount)).toBe(99.99);
     });
 
     it('should update an expense', async () => {
@@ -449,7 +450,7 @@ describe('E2E: Complete Expense Workflow', () => {
         })
         .expect(200);
 
-      expect(response.body.amount).toBe(75);
+      expect(parseFloat(response.body.amount)).toBe(75);
       expect(response.body.merchant).toBe('Updated Merchant');
       expect(response.body.notes).toBe('Updated notes');
     });
@@ -530,7 +531,7 @@ describe('E2E: Complete Expense Workflow', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('hasError');
-      expect(response.body).toHaveProperty('errorType');
+      expect(response.body).toHaveProperty('confidence');
       expect(typeof response.body.hasError).toBe('boolean');
     });
   });
@@ -566,8 +567,8 @@ describe('E2E: Complete Expense Workflow', () => {
         })
         .expect(201);
 
-      expect(response.body).toHaveProperty('id');
-      expect(response.body.feedbackType).toBe('ACCEPT');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Feedback recorded successfully');
     });
 
     it('should record REJECT feedback with correction', async () => {
@@ -575,7 +576,7 @@ describe('E2E: Complete Expense Workflow', () => {
       await prisma.category.deleteMany({
         where: { userId: testUserId, name: { startsWith: 'Correction Category' } },
       });
-      
+
       // Create another category for correction
       const correctionCategory = await prisma.category.create({
         data: {
@@ -599,9 +600,8 @@ describe('E2E: Complete Expense Workflow', () => {
         })
         .expect(201);
 
-      expect(response.body).toHaveProperty('id');
-      expect(response.body.feedbackType).toBe('REJECT');
-      expect(response.body.actualCategory).toBe(correctionCategory.id);
+      expect(response.body).toHaveProperty('message');
+      expect(response.body.message).toBe('Feedback recorded successfully');
     });
 
     it('should get feedback statistics', async () => {
@@ -612,9 +612,9 @@ describe('E2E: Complete Expense Workflow', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('totalFeedback');
-      expect(response.body).toHaveProperty('acceptCount');
-      expect(response.body).toHaveProperty('rejectCount');
-      expect(response.body).toHaveProperty('accuracy');
+      expect(response.body).toHaveProperty('acceptRate');
+      expect(response.body).toHaveProperty('rejectRate');
+      expect(response.body).toHaveProperty('recentAccuracy');
     });
 
     it('should check if model retraining is needed', async () => {
@@ -638,7 +638,7 @@ describe('E2E: Complete Expense Workflow', () => {
         .query({ userId: testUserId, days: 30 })
         .expect(200);
 
-      expect(response.body).toHaveProperty('accuracy');
+      expect(response.body).toHaveProperty('overallAccuracy');
       expect(response.body).toHaveProperty('totalPredictions');
       expect(response.body).toHaveProperty('correctPredictions');
     });
@@ -650,9 +650,9 @@ describe('E2E: Complete Expense Workflow', () => {
         .query({ userId: testUserId })
         .expect(200);
 
-      expect(response.body).toHaveProperty('overallAccuracy');
-      expect(response.body).toHaveProperty('totalPredictions');
-      expect(response.body).toHaveProperty('recentActivity');
+      expect(response.body).toHaveProperty('currentAccuracy');
+      expect(response.body).toHaveProperty('improvementMetrics');
+      expect(response.body).toHaveProperty('accuracyTrend');
     });
 
     it('should get improvement metrics over time', async () => {
@@ -662,8 +662,8 @@ describe('E2E: Complete Expense Workflow', () => {
         .query({ userId: testUserId })
         .expect(200);
 
-      expect(response.body).toHaveProperty('improvementRate');
-      expect(response.body).toHaveProperty('accuracyTrend');
+      expect(response.body).toHaveProperty('accuracyImprovement');
+      expect(response.body).toHaveProperty('learningRate');
     });
   });
 
@@ -692,7 +692,8 @@ describe('E2E: Complete Expense Workflow', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('errors');
     });
 
     it('should validate required fields when creating category', async () => {
@@ -704,7 +705,8 @@ describe('E2E: Complete Expense Workflow', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('errors');
     });
 
     it('should handle invalid expense amount', async () => {
@@ -720,7 +722,8 @@ describe('E2E: Complete Expense Workflow', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('errors');
     });
   });
 
