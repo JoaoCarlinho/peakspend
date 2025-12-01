@@ -7,25 +7,19 @@ import { CategoryService, CreateCategoryInput, UpdateCategoryInput } from '../se
  * Handles HTTP requests for category CRUD operations
  */
 export class CategoryController {
-  constructor(private categoryService: CategoryService) {}
+  constructor(private categoryService: CategoryService) { }
 
   /**
    * GET /api/categories
    * Get all categories for user
    */
-  list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  list = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.userId;
-      if (!userId) {
-        res.status(401).json({ message: 'Unauthorized' });
-        return;
-      }
-
+      const userId = req.user!.id;
       const categories = await this.categoryService.getCategories(userId);
-
-      res.status(200).json(categories);
+      res.json({ categories });
     } catch (error) {
-      next(error);
+      res.status(500).json({ error: 'Failed to fetch categories' });
     }
   };
 

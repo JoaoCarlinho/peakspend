@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { renderWithProviders, userEvent } from '../../../test/test-utils';
 import { ExpenseList } from '../ExpenseList';
-import type { Expense } from '../../../types/expense';
 
 describe('ExpenseList', () => {
   const mockOnRowClick = vi.fn();
@@ -158,7 +157,6 @@ describe('ExpenseList', () => {
   });
 
   it('handles pagination', async () => {
-    const user = userEvent.setup();
     renderWithProviders(<ExpenseList />);
 
     await waitFor(() => {

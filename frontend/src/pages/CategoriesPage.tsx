@@ -76,7 +76,7 @@ export function CategoriesPage() {
       }
       setFormOpen(false);
       setSelectedCategory(undefined);
-    } catch (err) {
+    } catch (_err) {
       setSnackbar({
         open: true,
         message: selectedCategory ? 'Failed to update category' : 'Failed to create category',
@@ -97,7 +97,7 @@ export function CategoriesPage() {
       });
       setDeleteDialogOpen(false);
       setSelectedCategory(undefined);
-    } catch (err) {
+    } catch (_err) {
       setSnackbar({
         open: true,
         message: 'Failed to delete category',

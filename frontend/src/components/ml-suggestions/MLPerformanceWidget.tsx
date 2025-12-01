@@ -8,7 +8,7 @@
  * - Total predictions
  */
 
-import { Box, Card, CardContent, Chip, LinearProgress, Stack, Typography } from '@mui/material';
+import { Box, Card, CardContent, LinearProgress, Stack, Typography } from '@mui/material';
 import { TrendingUp, CheckCircle, Psychology, Timeline } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
@@ -67,8 +67,6 @@ export function MLPerformanceWidget() {
     return null; // Don't show widget until some feedback collected
   }
 
-  const accuracyColor = data.accuracy_7d >= 0.8 ? 'success' : data.accuracy_7d >= 0.6 ? 'warning' : 'error';
-  const acceptanceColor = data.acceptance_rate >= 80 ? 'success' : data.acceptance_rate >= 60 ? 'warning' : 'error';
 
   return (
     <Card sx={{ mb: 2, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>

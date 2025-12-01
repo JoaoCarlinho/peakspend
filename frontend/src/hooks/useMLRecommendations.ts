@@ -63,7 +63,7 @@ export function useMLRecommendations(
   } = {}
 ) {
   const { user } = useAuth();
-  const { enabled = true, debounceMs = 500 } = options;
+  const { enabled = true } = options;
 
   // Only fetch if merchant and amount are provided
   const shouldFetch = enabled && !!request.merchant && request.amount > 0 && !!user;
@@ -118,7 +118,7 @@ export function transformMLRecommendations(data: RecommendationResponse | undefi
     field: err.type,
     severity: err.severity === 'error' ? 'high' as const
       : err.severity === 'warning' ? 'medium' as const
-      : 'low' as const,
+        : 'low' as const,
     message: err.message,
     suggestion: err.suggestion,
     metadata: err.metadata,

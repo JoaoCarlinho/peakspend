@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   Box,
@@ -74,9 +74,7 @@ export function ExpenseForm({ expense, onSubmit, onCancel, isSubmitting = false 
   const {
     suggestions,
     errors,
-    coldStart,
     isLoading: isSuggestionsLoading,
-    metrics,
   } = useCategorySuggestions(
     merchant || '',
     parseFloat(amount) || 0,
@@ -89,7 +87,7 @@ export function ExpenseForm({ expense, onSubmit, onCancel, isSubmitting = false 
   );
 
   // Handle suggestion selection
-  const handleSuggestionSelect = (selectedCategoryId: string, categoryName: string) => {
+  const handleSuggestionSelect = (selectedCategoryId: string) => {
     setValue('categoryId', selectedCategoryId, { shouldValidate: true });
   };
 
@@ -440,10 +438,10 @@ export function ExpenseForm({ expense, onSubmit, onCancel, isSubmitting = false 
             {isUploading
               ? 'Uploading...'
               : isProcessingOcr
-              ? 'Processing...'
-              : isSubmitting
-              ? 'Saving...'
-              : 'Save'}
+                ? 'Processing...'
+                : isSubmitting
+                  ? 'Saving...'
+                  : 'Save'}
           </Button>
         </Box>
       </Stack>
