@@ -1,10 +1,5 @@
-import { AppBar, Toolbar, Typography, Button, Box, IconButton } from '@mui/material';
-import {
-  Receipt as ReceiptIcon,
-  Category as CategoryIcon,
-  Analytics as AnalyticsIcon,
-  Menu as MenuIcon,
-} from '@mui/icons-material';
+import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
+import { Receipt as ReceiptIcon, Category as CategoryIcon, Analytics as AnalyticsIcon } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LearningBadge } from '../improvement-metrics/LearningBadge';
 import { UserMenu } from './UserMenu';
