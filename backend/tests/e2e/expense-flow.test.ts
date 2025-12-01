@@ -13,6 +13,7 @@
 import request from 'supertest';
 import app from '../../src/app';
 import { PrismaClient } from '../../src/generated/prisma/client';
+import { signToken } from '../../src/utils/jwt.utils';
 
 // Ensure DATABASE_URL is set for test database
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://supertutors:devpassword@localhost:5432/peakspend_test';
@@ -28,6 +29,8 @@ const prisma = new PrismaClient({
 
 describe('E2E: Complete Expense Workflow', () => {
   let testUserId: string;
+  let testUserEmail: string;
+  let authToken: string;
   let testCategoryId: string;
   let testExpenseId: string;
 
@@ -36,14 +39,21 @@ describe('E2E: Complete Expense Workflow', () => {
     await prisma.$connect();
 
     // Create test user
+    testUserEmail = `test-${Date.now()}@example.com`;
     const user = await prisma.user.create({
       data: {
-        email: `test-${Date.now()}@example.com`,
+        email: testUserEmail,
         passwordHash: 'hashedpassword123', // In reality, this would be properly hashed
         name: 'Test User',
       },
     });
     testUserId = user.id;
+
+    // Generate JWT token for authentication
+    authToken = signToken({
+      userId: testUserId,
+      email: testUserEmail,
+    });
   });
 
   afterAll(async () => {
@@ -58,17 +68,21 @@ describe('E2E: Complete Expense Workflow', () => {
   });
 
   afterEach(async () => {
-    // Clean up expenses after each test
+    // Clean up expenses and categories after each test
     if (testUserId) {
       await prisma.expense.deleteMany({ where: { userId: testUserId } });
+      await prisma.category.deleteMany({ where: { userId: testUserId, isDefault: false } });
+      await prisma.trainingData.deleteMany({ where: { userId: testUserId } });
     }
+    testCategoryId = undefined as any;
+    testExpenseId = undefined as any;
   });
 
   describe('AC-4: Category Management Flow', () => {
     it('should list default categories', async () => {
       const response = await request(app)
         .get('/api/categories')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toHaveProperty('categories');
@@ -83,7 +97,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should create a custom category', async () => {
       const response = await request(app)
         .post('/api/categories')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           name: 'Test Category',
           color: '#FF5733',
@@ -103,7 +117,7 @@ describe('E2E: Complete Expense Workflow', () => {
       // First create a category
       const createResponse = await request(app)
         .post('/api/categories')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           name: 'Fetch Test Category',
           color: '#00FF00',
@@ -116,7 +130,7 @@ describe('E2E: Complete Expense Workflow', () => {
       // Then fetch it
       const response = await request(app)
         .get(`/api/categories/${categoryId}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body.id).toBe(categoryId);
@@ -127,7 +141,7 @@ describe('E2E: Complete Expense Workflow', () => {
       // Create category first
       const createResponse = await request(app)
         .post('/api/categories')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           name: 'Original Name',
           color: '#000000',
@@ -140,7 +154,7 @@ describe('E2E: Complete Expense Workflow', () => {
       // Update it
       const response = await request(app)
         .put(`/api/categories/${categoryId}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           name: 'Updated Name',
           color: '#FFFFFF',
@@ -155,7 +169,7 @@ describe('E2E: Complete Expense Workflow', () => {
       // Create category first
       const createResponse = await request(app)
         .post('/api/categories')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           name: 'To Be Deleted',
           color: '#FF0000',
@@ -168,23 +182,28 @@ describe('E2E: Complete Expense Workflow', () => {
       // Delete it
       await request(app)
         .delete(`/api/categories/${categoryId}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(204);
 
       // Verify it's gone
       await request(app)
         .get(`/api/categories/${categoryId}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
     });
   });
 
   describe('AC-2: Expense Creation and Management Flow', () => {
     beforeEach(async () => {
+      // Clean up any existing test categories first
+      await prisma.category.deleteMany({
+        where: { userId: testUserId, name: { startsWith: 'Test Expense Category' } },
+      });
+      
       // Create a test category for expenses
       const category = await prisma.category.create({
         data: {
-          name: 'Test Expense Category',
+          name: `Test Expense Category ${Date.now()}`,
           color: '#123456',
           userId: testUserId,
           isDefault: false,
@@ -196,7 +215,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should create an expense', async () => {
       const response = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: 42.50,
@@ -221,7 +240,7 @@ describe('E2E: Complete Expense Workflow', () => {
       for (let i = 0; i < 5; i++) {
         await request(app)
           .post('/api/expenses')
-          .set('x-user-id', testUserId)
+          .set('Authorization', `Bearer ${authToken}`)
           .send({
             userId: testUserId,
             amount: 10 + i,
@@ -234,7 +253,7 @@ describe('E2E: Complete Expense Workflow', () => {
 
       const response = await request(app)
         .get('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ userId: testUserId, page: 1, limit: 3 })
         .expect(200);
 
@@ -247,10 +266,15 @@ describe('E2E: Complete Expense Workflow', () => {
     });
 
     it('should filter expenses by category', async () => {
+      // Clean up any existing test categories first
+      await prisma.category.deleteMany({
+        where: { userId: testUserId, name: { startsWith: 'Filter Test Category' } },
+      });
+      
       // Create another category
       const category2 = await prisma.category.create({
         data: {
-          name: 'Filter Test Category',
+          name: `Filter Test Category ${Date.now()}`,
           color: '#654321',
           userId: testUserId,
           isDefault: false,
@@ -260,7 +284,7 @@ describe('E2E: Complete Expense Workflow', () => {
       // Create expenses in different categories
       await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: 100,
@@ -272,7 +296,7 @@ describe('E2E: Complete Expense Workflow', () => {
 
       await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: 200,
@@ -285,7 +309,7 @@ describe('E2E: Complete Expense Workflow', () => {
       // Filter by first category
       const response = await request(app)
         .get('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ userId: testUserId, categoryId: testCategoryId })
         .expect(200);
 
@@ -303,7 +327,7 @@ describe('E2E: Complete Expense Workflow', () => {
       // Create expense with yesterday's date
       await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: 50,
@@ -316,7 +340,7 @@ describe('E2E: Complete Expense Workflow', () => {
       // Create expense with today's date
       await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: 75,
@@ -329,7 +353,7 @@ describe('E2E: Complete Expense Workflow', () => {
       // Filter for today only
       const response = await request(app)
         .get('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({
           userId: testUserId,
           startDate: today.toISOString().split('T')[0],
@@ -344,7 +368,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should search expenses by merchant name', async () => {
       await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: 30,
@@ -356,7 +380,7 @@ describe('E2E: Complete Expense Workflow', () => {
 
       await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: 40,
@@ -368,7 +392,7 @@ describe('E2E: Complete Expense Workflow', () => {
 
       const response = await request(app)
         .get('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ userId: testUserId, search: 'starbucks' })
         .expect(200);
 
@@ -379,7 +403,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should get expense by ID', async () => {
       const createResponse = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: 99.99,
@@ -393,7 +417,7 @@ describe('E2E: Complete Expense Workflow', () => {
 
       const response = await request(app)
         .get(`/api/expenses/${expenseId}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body.id).toBe(expenseId);
@@ -403,7 +427,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should update an expense', async () => {
       const createResponse = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: 50,
@@ -417,7 +441,7 @@ describe('E2E: Complete Expense Workflow', () => {
 
       const response = await request(app)
         .put(`/api/expenses/${expenseId}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           amount: 75,
           merchant: 'Updated Merchant',
@@ -433,7 +457,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should delete an expense', async () => {
       const createResponse = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: 25,
@@ -447,36 +471,39 @@ describe('E2E: Complete Expense Workflow', () => {
 
       await request(app)
         .delete(`/api/expenses/${expenseId}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(204);
 
       await request(app)
         .get(`/api/expenses/${expenseId}`)
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
     });
   });
 
   describe('AC-3: ML Inference Integration Flow', () => {
     beforeEach(async () => {
-      // Ensure test category exists
-      if (!testCategoryId) {
-        const category = await prisma.category.create({
-          data: {
-            name: 'ML Test Category',
-            color: '#ABCDEF',
-            userId: testUserId,
-            isDefault: false,
-          },
-        });
-        testCategoryId = category.id;
-      }
+      // Clean up any existing test categories first
+      await prisma.category.deleteMany({
+        where: { userId: testUserId, name: { startsWith: 'ML Test Category' } },
+      });
+      
+      // Create a test category
+      const category = await prisma.category.create({
+        data: {
+          name: `ML Test Category ${Date.now()}`,
+          color: '#ABCDEF',
+          userId: testUserId,
+          isDefault: false,
+        },
+      });
+      testCategoryId = category.id;
     });
 
     it('should get ML category suggestions for expense data', async () => {
       const response = await request(app)
         .post('/api/ml-inference/suggest-category')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           merchant: 'Starbucks',
@@ -493,7 +520,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should detect potential errors in expense data', async () => {
       const response = await request(app)
         .post('/api/ml-inference/detect-errors')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           merchant: 'Test Merchant',
@@ -528,7 +555,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should record ACCEPT feedback', async () => {
       const response = await request(app)
         .post('/api/feedback/record')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           expenseId: testExpenseId,
@@ -544,10 +571,15 @@ describe('E2E: Complete Expense Workflow', () => {
     });
 
     it('should record REJECT feedback with correction', async () => {
+      // Clean up any existing test categories first
+      await prisma.category.deleteMany({
+        where: { userId: testUserId, name: { startsWith: 'Correction Category' } },
+      });
+      
       // Create another category for correction
       const correctionCategory = await prisma.category.create({
         data: {
-          name: 'Correction Category',
+          name: `Correction Category ${Date.now()}`,
           color: '#999999',
           userId: testUserId,
           isDefault: false,
@@ -556,7 +588,7 @@ describe('E2E: Complete Expense Workflow', () => {
 
       const response = await request(app)
         .post('/api/feedback/record')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           expenseId: testExpenseId,
@@ -575,7 +607,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should get feedback statistics', async () => {
       const response = await request(app)
         .get('/api/feedback/stats')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ userId: testUserId, days: 30 })
         .expect(200);
 
@@ -588,7 +620,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should check if model retraining is needed', async () => {
       const response = await request(app)
         .get('/api/feedback/retraining-check')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ userId: testUserId })
         .expect(200);
 
@@ -602,7 +634,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should get ML accuracy metrics', async () => {
       const response = await request(app)
         .get('/api/ml-metrics/accuracy')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ userId: testUserId, days: 30 })
         .expect(200);
 
@@ -614,7 +646,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should get ML performance dashboard data', async () => {
       const response = await request(app)
         .get('/api/ml-metrics/dashboard')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ userId: testUserId })
         .expect(200);
 
@@ -626,7 +658,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should get improvement metrics over time', async () => {
       const response = await request(app)
         .get('/api/ml-metrics/improvement')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .query({ userId: testUserId })
         .expect(200);
 
@@ -639,21 +671,21 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should return 404 for non-existent expense', async () => {
       await request(app)
         .get('/api/expenses/00000000-0000-0000-0000-000000000000')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
     });
 
     it('should return 404 for non-existent category', async () => {
       await request(app)
         .get('/api/categories/00000000-0000-0000-0000-000000000000')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(404);
     });
 
     it('should validate required fields when creating expense', async () => {
       const response = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           // Missing required fields: amount, merchant, categoryId
@@ -666,7 +698,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should validate required fields when creating category', async () => {
       const response = await request(app)
         .post('/api/categories')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           // Missing required fields: name, color, userId
         })
@@ -678,7 +710,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should handle invalid expense amount', async () => {
       const response = await request(app)
         .post('/api/expenses')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           userId: testUserId,
           amount: -50, // Invalid: negative amount
@@ -696,7 +728,7 @@ describe('E2E: Complete Expense Workflow', () => {
     it('should return healthy status', async () => {
       const response = await request(app)
         .get('/health')
-        .set('x-user-id', testUserId)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
       expect(response.body).toHaveProperty('status', 'ok');

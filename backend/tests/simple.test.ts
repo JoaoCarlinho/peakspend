@@ -1,6 +1,7 @@
 import request from 'supertest';
 import app from '../src/app';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { signToken } from '../src/utils/jwt.utils';
 
 // Ensure DATABASE_URL is set for test database
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://supertutors:devpassword@localhost:5432/peakspend_test';
@@ -15,18 +16,27 @@ const prisma = new PrismaClient({
 
 describe('Simple Test', () => {
   let testUserId: string;
+  let testUserEmail: string;
+  let authToken: string;
 
   beforeAll(async () => {
     await prisma.$connect();
 
+    testUserEmail = `simple-test-${Date.now()}@example.com`;
     const user = await prisma.user.create({
       data: {
-        email: `simple-test-${Date.now()}@example.com`,
+        email: testUserEmail,
         passwordHash: 'testpassword',
         name: 'Simple Test User',
       },
     });
     testUserId = user.id;
+
+    // Generate JWT token for authentication
+    authToken = signToken({
+      userId: testUserId,
+      email: testUserEmail,
+    });
   });
 
   afterAll(async () => {
@@ -38,8 +48,8 @@ describe('Simple Test', () => {
 
   it('should access health endpoint', async () => {
     const response = await request(app)
-      .set('x-user-id', testUserId)
       .get('/health')
+      .set('Authorization', `Bearer ${authToken}`)
       .expect(200);
 
     expect(response.body).toHaveProperty('status', 'ok');
@@ -47,8 +57,8 @@ describe('Simple Test', () => {
 
   it('should list categories', async () => {
     const response = await request(app)
-      .set('x-user-id', testUserId)
       .get('/api/categories')
+      .set('Authorization', `Bearer ${authToken}`)
       .expect(200);
 
     expect(response.body).toHaveProperty('categories');

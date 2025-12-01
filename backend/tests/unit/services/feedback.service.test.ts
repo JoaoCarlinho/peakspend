@@ -13,7 +13,17 @@ describe('FeedbackService', () => {
   let prismaMock: jest.Mocked<PrismaClient>;
 
   beforeEach(() => {
-    prismaMock = new PrismaClient() as jest.Mocked<PrismaClient>;
+    prismaMock = {
+      trainingData: {
+        create: jest.fn(),
+        findMany: jest.fn(),
+        findFirst: jest.fn(),
+        count: jest.fn(),
+      },
+      expense: {
+        findMany: jest.fn(),
+      },
+    } as unknown as jest.Mocked<PrismaClient>;
     feedbackService = new FeedbackService(prismaMock);
   });
 

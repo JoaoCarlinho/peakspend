@@ -14,7 +14,16 @@ describe('ExpenseService', () => {
   let prismaMock: jest.Mocked<PrismaClient>;
 
   beforeEach(() => {
-    prismaMock = new PrismaClient() as jest.Mocked<PrismaClient>;
+    prismaMock = {
+      expense: {
+        create: jest.fn(),
+        findMany: jest.fn(),
+        findUnique: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn(),
+      },
+    } as unknown as jest.Mocked<PrismaClient>;
     expenseService = new ExpenseService(prismaMock);
   });
 

@@ -13,7 +13,14 @@ describe('MlInferenceService', () => {
   let prismaMock: jest.Mocked<PrismaClient>;
 
   beforeEach(() => {
-    prismaMock = new PrismaClient() as jest.Mocked<PrismaClient>;
+    prismaMock = {
+      category: {
+        findMany: jest.fn(),
+      },
+      expense: {
+        findMany: jest.fn(),
+      },
+    } as unknown as jest.Mocked<PrismaClient>;
     mlService = new MlInferenceService(prismaMock);
   });
 
