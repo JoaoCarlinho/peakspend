@@ -11,6 +11,9 @@ import mlMetricsRoutes from './routes/ml-metrics.routes';
 import insightsRoutes from './routes/insights.routes';
 import trainingDataRoutes from './routes/training-data.routes';
 import consentRoutes from './routes/consent.routes';
+import chatRoutes from './routes/chat.routes';
+import goalsRoutes from './routes/goals.routes';
+import sensitiveDataRoutes from './routes/sensitiveData.routes';
 import reviewQueueRoutes from './audit/reviewQueue.routes';
 import auditRoutes from './audit/audit.routes';
 import adminRoutes from './routes/admin.routes';
@@ -41,6 +44,11 @@ app.use('/api/expenses', expenseRoutes);
 // This must be applied BEFORE the route handlers
 app.use('/api/receipts', inputInspectorMiddleware, receiptRoutes);
 app.use('/api/insights', inputInspectorMiddleware, insightsRoutes);
+app.use('/api/chat', inputInspectorMiddleware, chatRoutes);
+
+// Goals and sensitive data routes - tenant isolation enforced at service level
+app.use('/api/goals', goalsRoutes);
+app.use('/api/user', sensitiveDataRoutes);
 
 app.use('/api/categories', categoryRoutes);
 app.use('/api/ml-inference', mlInferenceRoutes);

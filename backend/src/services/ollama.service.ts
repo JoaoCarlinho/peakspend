@@ -106,7 +106,7 @@ Return a JSON object with:
 Be precise. If a field is unclear, use null. Return ONLY valid JSON, no markdown formatting.`;
 
     try {
-      const response = await this.chat([
+      const response = await this.chatRaw([
         { role: 'system', content: 'You are a receipt parsing expert. Always return valid JSON.' },
         { role: 'user', content: prompt },
       ]);
@@ -202,7 +202,7 @@ Focus on:
 Return ONLY valid JSON array, no markdown formatting.`;
 
     try {
-      const response = await this.chat([
+      const response = await this.chatRaw([
         { role: 'system', content: 'You are a financial advisor focused on actionable insights. Always return valid JSON.' },
         { role: 'user', content: prompt },
       ]);
@@ -279,7 +279,7 @@ Provide category-specific insights as JSON array with:
 Return ONLY valid JSON array, no markdown.`;
 
     try {
-      const response = await this.chat([
+      const response = await this.chatRaw([
         { role: 'system', content: 'You are a financial advisor. Always return valid JSON.' },
         { role: 'user', content: prompt },
       ]);
@@ -295,9 +295,18 @@ Return ONLY valid JSON array, no markdown.`;
   }
 
   /**
+   * Public chat method for external services
+   * Returns the assistant's message content as a string
+   */
+  async chat(messages: OllamaMessage[]): Promise<string> {
+    const response = await this.chatRaw(messages);
+    return response.message.content;
+  }
+
+  /**
    * Core chat method for Ollama API
    */
-  private async chat(
+  private async chatRaw(
     messages: OllamaMessage[],
     model: string = this.defaultModel
   ): Promise<OllamaResponse> {
