@@ -1,0 +1,213 @@
+# Tool Permissions Configuration
+# ================================
+# This file defines role-based access control for LLM tools.
+# All tool access is governed by this configuration.
+#
+# Configuration version - used for migration compatibility
+version: "1.0"
+
+# Role Hierarchy
+# ===============
+# Defines permission inheritance.
+# Higher privilege roles inherit from lower privilege roles.
+# - user: Base role, no inheritance
+# - admin: Inherits user permissions
+# - security: Inherits admin and user permissions
+roleHierarchy:
+  user: []
+  admin: [user]
+  security: [admin, user]
+
+# Default Deny Policy
+# ====================
+# When true, tools not explicitly configured are denied.
+# This is a security-first approach - only explicitly allowed tools are accessible.
+defaultDeny: true
+
+# Tool Permissions
+# =================
+# Each tool must be explicitly configured with:
+# - toolName: Unique identifier matching the registered tool
+# - description: What the tool does (for documentation and API responses)
+# - allowedRoles: Which roles can use this tool
+# - dataScope: What data the tool can access (own/team/all)
+# - parameters: Optional input restrictions
+# - rateLimit: Optional rate limiting per user
+tools:
+  # ============================================
+  # USER EXPENSE TOOLS
+  # ============================================
+  # These tools are available to all authenticated users
+  # but restricted to their own data (dataScope: own)
+
+  - toolName: getExpenses
+    description: Retrieve user's expense records with optional filtering
+    allowedRoles: [user, admin, security]
+    dataScope: own
+    rateLimit:
+      maxPerMinute: 30
+      maxPerHour: 500
+    parameters:
+      - parameterName: category
+        allowedValues: [food, transport, entertainment, utilities, shopping, healthcare, travel, other]
+      - parameterName: limit
+        maxLength: 3  # Max 3 digits (up to 999)
+
+  - toolName: getExpensesByCategory
+    description: Get expenses grouped and summarized by category
+    allowedRoles: [user, admin, security]
+    dataScope: own
+    rateLimit:
+      maxPerMinute: 20
+      maxPerHour: 300
+
+  - toolName: searchExpenses
+    description: Search expenses by various criteria including text, date, and amount
+    allowedRoles: [user, admin, security]
+    dataScope: own
+    rateLimit:
+      maxPerMinute: 15
+      maxPerHour: 200
+    parameters:
+      - parameterName: query
+        maxLength: 500
+
+  - toolName: getExpenseStats
+    description: Get statistical summary of expenses for a time period
+    allowedRoles: [user, admin, security]
+    dataScope: own
+    rateLimit:
+      maxPerMinute: 10
+      maxPerHour: 100
+
+  # ============================================
+  # RECEIPT PROCESSING TOOLS
+  # ============================================
+  # Tools for receipt parsing and expense categorization
+
+  - toolName: parseReceipt
+    description: Parse receipt image using OCR to extract expense data
+    allowedRoles: [user, admin, security]
+    dataScope: own
+    rateLimit:
+      maxPerMinute: 10
+      maxPerHour: 100
+
+  - toolName: categorizeExpense
+    description: Automatically categorize an expense based on description and merchant
+    allowedRoles: [user, admin, security]
+    dataScope: own
+    rateLimit:
+      maxPerMinute: 20
+      maxPerHour: 300
+
+  - toolName: suggestCategory
+    description: Get AI-powered category suggestions for an expense
+    allowedRoles: [user, admin, security]
+    dataScope: own
+    rateLimit:
+      maxPerMinute: 30
+      maxPerHour: 500
+
+  # ============================================
+  # BUDGET TOOLS
+  # ============================================
+  # Budget management and tracking tools
+
+  - toolName: getBudgets
+    description: Get user's budget settings and limits
+    allowedRoles: [user, admin, security]
+    dataScope: own
+    rateLimit:
+      maxPerMinute: 20
+      maxPerHour: 300
+
+  - toolName: getBudgetProgress
+    description: Get progress against budget for current period
+    allowedRoles: [user, admin, security]
+    dataScope: own
+    rateLimit:
+      maxPerMinute: 15
+      maxPerHour: 200
+
+  # ============================================
+  # ADMIN-ONLY TOOLS
+  # ============================================
+  # These tools are restricted to admin and security roles
+  # and can access all user data (dataScope: all)
+
+  - toolName: getAllUsersExpenses
+    description: Retrieve expenses for all users (admin dashboard)
+    allowedRoles: [admin, security]
+    dataScope: all
+    rateLimit:
+      maxPerMinute: 10
+      maxPerHour: 50
+
+  - toolName: getUserExpenses
+    description: Retrieve expenses for a specific user by ID
+    allowedRoles: [admin, security]
+    dataScope: all
+    rateLimit:
+      maxPerMinute: 20
+      maxPerHour: 100
+    parameters:
+      - parameterName: userId
+        pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
+  - toolName: getUserStats
+    description: Get expense statistics for a specific user
+    allowedRoles: [admin, security]
+    dataScope: all
+    rateLimit:
+      maxPerMinute: 15
+      maxPerHour: 75
+    parameters:
+      - parameterName: userId
+        pattern: "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+
+  # ============================================
+  # SECURITY-ONLY TOOLS
+  # ============================================
+  # These tools are restricted to security role only
+  # Used for audit, monitoring, and security operations
+
+  - toolName: getAuditLogs
+    description: Retrieve audit log entries for security review
+    allowedRoles: [security]
+    dataScope: all
+    rateLimit:
+      maxPerMinute: 10
+      maxPerHour: 100
+
+  - toolName: getSecurityEvents
+    description: Retrieve security events and alerts
+    allowedRoles: [security]
+    dataScope: all
+    rateLimit:
+      maxPerMinute: 20
+      maxPerHour: 200
+
+  - toolName: reviewFlaggedContent
+    description: Review content flagged for human review
+    allowedRoles: [security]
+    dataScope: all
+    rateLimit:
+      maxPerMinute: 30
+      maxPerHour: 300
+
+  - toolName: getSystemMetrics
+    description: Get system performance and security metrics
+    allowedRoles: [security]
+    dataScope: all
+    rateLimit:
+      maxPerMinute: 5
+      maxPerHour: 50
+
+  - toolName: exportAuditLogs
+    description: Export audit logs for compliance reporting
+    allowedRoles: [security]
+    dataScope: all
+    rateLimit:
+      maxPerMinute: 2
+      maxPerHour: 10

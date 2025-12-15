@@ -1,0 +1,97 @@
+# Anomaly Scoring Rules Configuration
+# Version: 1.0
+# Description: Weights and thresholds for anomaly detection in LLM input
+#
+# Score Range: 0.0 (safe) to 1.0 (definitely malicious)
+#
+# Decision Thresholds:
+# - score < 0.3 → ALLOW (fast path)
+# - score 0.3 - 0.7 → ESCALATE (human review)
+# - score > 0.7 → BLOCK (definite attack)
+#
+# Each factor contributes to the final score based on its weight
+# and is capped at its max_contribution to prevent single-factor dominance
+
+version: "1.0"
+description: "Anomaly scoring weights and thresholds for input inspection"
+
+thresholds:
+  block: 0.7        # Score >= 0.7 results in BLOCK
+  escalate: 0.3     # Score 0.3-0.7 results in ESCALATE
+  allow: 0.3        # Score < 0.3 results in ALLOW
+
+factors:
+  # Pattern Match Factor
+  # Contribution based on patterns detected by PatternMatcher
+  pattern_match:
+    weight: 0.40
+    max_contribution: 0.6
+    severity_weights:
+      CRITICAL: 0.5
+      HIGH: 0.4
+      MEDIUM: 0.2
+      LOW: 0.1
+    diminishing_rate: 0.7    # Each additional match contributes 70% of previous
+
+  # Input Length Factor
+  # Unusually short or long inputs may indicate attack
+  input_length:
+    weight: 0.15
+    max_contribution: 0.15
+    normal_range:
+      min: 10                # Normal minimum for expense queries
+      max: 2000              # Normal maximum for expense queries
+    extreme_thresholds:
+      very_short: 5          # Extremely short - suspicious
+      very_long: 5000        # Extremely long - potential payload
+
+  # Special Character Density Factor
+  # High density of special/control characters may indicate injection
+  special_char_density:
+    weight: 0.15
+    max_contribution: 0.15
+    dangerous_chars: "{}[]<>|;$#@!\\^`~"
+    threshold_density: 0.10  # Start scoring at 10% special char density
+
+  # Encoding Detection Factor
+  # Presence of encoding (base64, unicode escapes) may hide attacks
+  encoding_detection:
+    weight: 0.20
+    max_contribution: 0.2
+    patterns:
+      - base64               # Long base64-like strings
+      - unicode_escape       # \uXXXX, &#xXXXX; patterns
+      - url_encoding         # %XX patterns in suspicious contexts
+
+  # Instruction Language Factor
+  # Presence of command-like language directed at AI
+  instruction_language:
+    weight: 0.20
+    max_contribution: 0.2
+    imperative_verbs:
+      - "do"
+      - "execute"
+      - "run"
+      - "perform"
+      - "print"
+      - "show"
+      - "tell"
+      - "reveal"
+      - "output"
+      - "display"
+    conditional_words:
+      - "if"
+      - "when"
+      - "unless"
+      - "otherwise"
+      - "else"
+    ai_references:
+      - "you must"
+      - "you will"
+      - "you are"
+      - "you should"
+      - "your instructions"
+      - "your rules"
+      - "your programming"
+      - "as an ai"
+      - "as a language model"
