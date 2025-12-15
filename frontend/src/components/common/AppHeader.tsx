@@ -3,6 +3,7 @@ import { Receipt as ReceiptIcon, Category as CategoryIcon, Analytics as Analytic
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LearningBadge } from '../improvement-metrics/LearningBadge';
 import { UserMenu } from './UserMenu';
+import { SecurityModeIndicator } from '../security/SecurityModeIndicator';
 
 export function AppHeader() {
   const navigate = useNavigate();
@@ -59,6 +60,7 @@ export function AppHeader() {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <SecurityModeIndicator />
           <LearningBadge />
           <UserMenu />
         </Box>
