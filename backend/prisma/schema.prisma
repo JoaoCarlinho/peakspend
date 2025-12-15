@@ -21,6 +21,7 @@ model User {
   email        String   @unique
   passwordHash String
   name         String?
+  role         UserRole @default(user)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -38,6 +39,11 @@ model User {
   categories   Category[]
   mlModels     MlModel[]
   trainingData TrainingData[]
+  chatSessions ChatSession[]
+  chatMessages ChatMessage[]
+  bankAccounts BankAccount[]
+  paymentCards PaymentCard[]
+  budgetGoals  BudgetGoal[]
 
   @@map("users")
 }
@@ -131,4 +137,200 @@ enum FeedbackType {
   ACCEPT
   REJECT
   MANUAL
+}
+
+// User role enum for RBAC (Story 1.1)
+enum UserRole {
+  user
+  admin
+  security
+}
+
+// Goal type enum for different goal categories (Story 14.2)
+enum GoalType {
+  savings        // Save a specific amount
+  spending_limit // Limit spending in a category
+  reduction      // Reduce spending by percentage
+}
+
+// Goal status enum for tracking goal state (Story 14.2)
+enum GoalStatus {
+  active
+  achieved
+  failed
+  abandoned
+}
+
+// AuditLog model for hash-chain audit logging (Story 6.1)
+model AuditLog {
+  id               String   @id @default(uuid()) @db.Uuid
+  sequenceNum      Int      @unique @default(autoincrement())
+  previousHash     String?
+  contentHash      String
+  timestamp        DateTime @default(now())
+  userId           String?  @db.Uuid
+  sessionId        String?
+  requestId        String?
+  endpoint         String?
+  requestHash      String?
+  responseHash     String?
+  securityDecision String?
+  tier             Int?
+  anomalyScore     Float?
+  patternsMatched  String[]
+  processingMs     Int?
+
+  // Legal hold fields (Story 6.4)
+  legalHold       Boolean   @default(false)
+  legalHoldReason String?
+  legalHoldSetAt  DateTime?
+  legalHoldSetBy  String?   @db.Uuid
+
+  @@index([timestamp])
+  @@index([userId])
+  @@index([securityDecision])
+  @@index([endpoint])
+  @@index([legalHold, timestamp])
+  @@map("audit_logs")
+}
+
+// SystemPrompt model for database-backed prompts (Story 2.1)
+model SystemPrompt {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  version     Int      @default(1)
+  content     String   @db.Text
+  contentHash String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  createdBy   String?  @db.Uuid
+
+  @@index([name, isActive])
+  @@map("system_prompts")
+}
+
+// SecurityEvent model for alerts and human review queue (Story 4.5)
+model SecurityEvent {
+  id                String    @id @default(uuid()) @db.Uuid
+  timestamp         DateTime  @default(now())
+  eventType         String
+  severity          String
+  userId            String?   @db.Uuid
+  sessionId         String?
+  requestId         String?
+  details           Json?
+  status            String    @default("PENDING")
+  reviewedBy        String?   @db.Uuid
+  reviewedAt        DateTime?
+  resolution        String?
+  alertSent         Boolean   @default(false)
+  alertDestinations String[]
+
+  @@index([timestamp])
+  @@index([eventType])
+  @@index([status])
+  @@index([userId])
+  @@map("security_events")
+}
+
+// ChatSession model for conversation threads (Story 10.1)
+model ChatSession {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @db.Uuid
+  startedAt     DateTime      @default(now())
+  lastMessageAt DateTime      @default(now())
+  metadata      Json?
+
+  // Relations
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId])
+  @@map("chat_sessions")
+}
+
+// ChatMessage model for individual chat messages (Story 10.1)
+model ChatMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  sessionId String   @db.Uuid
+  role      String   // "user", "assistant", "system"
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  // Relations
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([sessionId, createdAt])
+  @@map("chat_messages")
+}
+
+// BankAccount model for storing user bank account information (Story 13.1)
+// Security: Encrypted at rest with AES-256-GCM, tenant-isolated
+model BankAccount {
+  id                     String   @id @default(uuid()) @db.Uuid
+  userId                 String   @db.Uuid
+  accountNumberEncrypted String   @db.Text // AES-256-GCM encrypted
+  routingNumberEncrypted String   @db.Text // AES-256-GCM encrypted
+  lastFour               String   // Last 4 digits for display (plaintext)
+  nickname               String?
+  bankName               String?
+  accountType            String?  // "checking", "savings"
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("bank_accounts")
+}
+
+// PaymentCard model for storing user payment card information (Story 13.1)
+// Security: Encrypted at rest with AES-256-GCM, tenant-isolated
+model PaymentCard {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @db.Uuid
+  cardNumberEncrypted String   @db.Text // AES-256-GCM encrypted
+  lastFour            String   // Last 4 digits for display (plaintext)
+  expiryMonth         Int
+  expiryYear          Int
+  cardType            String   // "visa", "mastercard", "amex", "discover"
+  nickname            String?
+  cardholderName      String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("payment_cards")
+}
+
+// BudgetGoal model for user financial goals (Story 14.2)
+// Security: Tenant-isolated, all queries filter by userId
+model BudgetGoal {
+  id            String     @id @default(uuid()) @db.Uuid
+  userId        String     @db.Uuid
+  description   String
+  goalType      GoalType   @default(savings)
+  category      String?    // For category-specific goals
+  targetAmount  Decimal    @db.Decimal(10, 2)
+  currentAmount Decimal    @default(0) @db.Decimal(10, 2)
+  startDate     DateTime   @default(now())
+  deadline      DateTime
+  status        GoalStatus @default(active)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, status])
+  @@map("budget_goals")
 }
