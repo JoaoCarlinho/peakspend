@@ -1,5 +1,5 @@
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
-import { Receipt as ReceiptIcon, Category as CategoryIcon, Analytics as AnalyticsIcon } from '@mui/icons-material';
+import { Receipt as ReceiptIcon, Category as CategoryIcon, Analytics as AnalyticsIcon, Chat as ChatIcon } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LearningBadge } from '../improvement-metrics/LearningBadge';
 import { UserMenu } from './UserMenu';
@@ -56,6 +56,17 @@ export function AppHeader() {
             }}
           >
             ML Dashboard
+          </Button>
+          <Button
+            color="inherit"
+            startIcon={<ChatIcon />}
+            onClick={() => navigate('/chat')}
+            sx={{
+              fontWeight: isActive('/chat') ? 'bold' : 'normal',
+              borderBottom: isActive('/chat') ? '2px solid white' : 'none',
+            }}
+          >
+            Assistant
           </Button>
         </Box>
 
