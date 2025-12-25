@@ -309,7 +309,7 @@ export function SecurityFlagPanel() {
           const isUpdating = updating === flag.flag;
 
           return (
-            <Grid item xs={12} md={6} lg={4} key={flag.flag}>
+            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={flag.flag}>
               <Card
                 sx={{
                   height: '100%',

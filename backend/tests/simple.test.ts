@@ -52,7 +52,7 @@ describe('Simple Test', () => {
       .set('Authorization', `Bearer ${authToken}`)
       .expect(200);
 
-    expect(response.body).toHaveProperty('status', 'ok');
+    expect(response.body).toHaveProperty('status', 'healthy');
   });
 
   it('should list categories', async () => {
