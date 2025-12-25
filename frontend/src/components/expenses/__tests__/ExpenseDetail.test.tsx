@@ -8,15 +8,16 @@ describe('ExpenseDetail', () => {
   const mockExpense: Expense = {
     id: '1',
     userId: 'user1',
-    date: '2025-11-01',
+    // Use ISO date with time to avoid timezone issues in tests
+    date: '2025-11-01T12:00:00',
     amount: 45.5,
     merchant: 'Whole Foods',
     category: { id: '1', name: 'Groceries', color: '#4CAF50' },
     categoryId: '1',
     notes: 'Weekly groceries',
     receiptUrl: null,
-    createdAt: '2025-11-01T10:00:00Z',
-    updatedAt: '2025-11-01T10:00:00Z',
+    createdAt: '2025-11-01T12:00:00',
+    updatedAt: '2025-11-01T12:00:00',
   };
 
   const mockOnEdit = vi.fn();

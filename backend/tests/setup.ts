@@ -13,6 +13,14 @@ process.env.S3_BUCKET_NAME = 'test-bucket';
 process.env.AWS_ACCESS_KEY_ID = '';
 process.env.AWS_SECRET_ACCESS_KEY = '';
 
+// Alert configuration for tests
+process.env.ALERT_WEBHOOK_URL = 'https://test.example.com/webhook';
+process.env.ALERT_WEBHOOK_AUTH = 'Bearer test-token';
+process.env.ALERT_EMAIL_PRIMARY = 'test@example.com';
+process.env.SMTP_HOST = 'smtp.test.example.com';
+process.env.SMTP_USER = 'test-user';
+process.env.SMTP_PASS = 'test-pass';
+
 // Extend Jest timeout for integration tests
 jest.setTimeout(10000);
 

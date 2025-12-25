@@ -3,6 +3,7 @@ import type { Expense } from '../../types/expense';
 import type { Category } from '../../types/category';
 
 const API_BASE_URL = 'http://localhost:3000';
+const ML_API_BASE_URL = 'http://localhost:8000';
 
 // Mock data
 const mockCategories: Category[] = [
@@ -88,6 +89,18 @@ export const handlers = [
 
   // PUT /api/expenses/:id
   http.put(`${API_BASE_URL}/api/expenses/:id`, async ({ params, request }) => {
+    const { id } = params;
+    const body = (await request.json()) as Partial<Expense>;
+    const expense = mockExpenses.find((e) => e.id === id);
+    if (!expense) {
+      return HttpResponse.json({ message: 'Expense not found' }, { status: 404 });
+    }
+    const updated = { ...expense, ...body, updatedAt: new Date().toISOString() };
+    return HttpResponse.json(updated);
+  }),
+
+  // PATCH /api/expenses/:id (alternative update method)
+  http.patch(`${API_BASE_URL}/api/expenses/:id`, async ({ params, request }) => {
     const { id } = params;
     const body = (await request.json()) as Partial<Expense>;
     const expense = mockExpenses.find((e) => e.id === id);
@@ -365,6 +378,75 @@ export const handlers = [
     return HttpResponse.json({
       errors,
       hasErrors: errors.length > 0,
+    });
+  }),
+
+  // POST /api/ml/recommend (ML service)
+  http.post(`${ML_API_BASE_URL}/api/ml/recommend`, async ({ request }) => {
+    const body = (await request.json()) as {
+      user_id: string;
+      merchant: string;
+      amount: number;
+      date?: string;
+      notes?: string;
+      category?: string;
+      receipt_attached?: boolean;
+      top_k?: number;
+    };
+
+    const merchant = body.merchant.toLowerCase();
+    let predictions = [];
+
+    // Simple rule-based predictions
+    if (merchant.includes('market') || merchant.includes('grocery') || merchant.includes('foods')) {
+      predictions = [
+        {
+          category: 'Groceries',
+          confidence: 0.92,
+          confidence_pct: 92,
+          confidence_level: 'high',
+          explanation: 'Merchant name suggests grocery shopping',
+          detailed_explanation: 'Based on merchant name patterns',
+          contributing_factors: [
+            { factor: 'merchant_name', description: 'Grocery-related keywords', importance: 0.8 },
+          ],
+        },
+      ];
+    } else if (merchant.includes('restaurant') || merchant.includes('cafe') || merchant.includes('starbucks')) {
+      predictions = [
+        {
+          category: 'Dining',
+          confidence: 0.95,
+          confidence_pct: 95,
+          confidence_level: 'high',
+          explanation: 'Merchant is a restaurant or café',
+          detailed_explanation: 'Based on merchant name patterns',
+          contributing_factors: [
+            { factor: 'merchant_name', description: 'Dining-related keywords', importance: 0.9 },
+          ],
+        },
+      ];
+    } else {
+      predictions = [
+        {
+          category: 'Other',
+          confidence: 0.5,
+          confidence_pct: 50,
+          confidence_level: 'medium',
+          explanation: 'Unable to determine category with high confidence',
+          detailed_explanation: 'Merchant not in known patterns',
+          contributing_factors: [],
+        },
+      ];
+    }
+
+    return HttpResponse.json({
+      user_id: body.user_id,
+      predictions,
+      errors: [],
+      cold_start: false,
+      inference_time_ms: 15,
+      feature_quality: 0.85,
     });
   }),
 ];

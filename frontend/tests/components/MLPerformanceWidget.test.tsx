@@ -167,12 +167,20 @@ describe('MLPerformanceWidget', () => {
   });
 
   it('handles API error gracefully', async () => {
-    mockedAxios.get.mockRejectedValueOnce(new Error('API Error'));
+    // Mock error for all calls (component has retry: 1)
+    mockedAxios.get.mockRejectedValue(new Error('API Error'));
 
     const { container } = renderWidget();
 
-    await waitFor(() => {
-      expect(container.firstChild).toBeNull();
-    });
+    // Wait for loading to finish (loading screen disappears)
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/Loading AI performance/i)).not.toBeInTheDocument();
+      },
+      { timeout: 10000 },
+    );
+
+    // After error, component should render null
+    expect(container.firstChild).toBeNull();
   });
 });
