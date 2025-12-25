@@ -51,10 +51,10 @@ describe('E2E: Complete Expense Workflow', () => {
 
     // Create default categories for test user (simulates seed data)
     const defaultCategories = [
-      { name: 'Groceries', color: '#4CAF50', icon: 'shopping_cart' },
-      { name: 'Transportation', color: '#2196F3', icon: 'directions_car' },
-      { name: 'Entertainment', color: '#9C27B0', icon: 'movie' },
-      { name: 'Utilities', color: '#FF9800', icon: 'bolt' },
+      { name: 'Groceries', color: '#4CAF50' },
+      { name: 'Transportation', color: '#2196F3' },
+      { name: 'Entertainment', color: '#9C27B0' },
+      { name: 'Utilities', color: '#FF9800' },
     ];
 
     await prisma.category.createMany({
