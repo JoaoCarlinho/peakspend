@@ -32,6 +32,7 @@ import type { AuthorizationResult } from './toolPermissions.types';
 
 // Extend Express Request type to include RBAC result
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       rbacResult?: AuthorizationResult;
