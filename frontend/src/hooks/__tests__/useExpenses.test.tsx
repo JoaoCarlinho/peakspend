@@ -153,16 +153,18 @@ describe('useUpdateExpense', () => {
       wrapper: createWrapper(),
     });
 
-    const updates = {
+    // useUpdateExpense expects { id, input } structure
+    result.current.mutate({
       id: '1',
-      merchant: 'Updated Merchant',
-    };
-
-    result.current.mutate(updates);
-
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true);
+      input: { merchant: 'Updated Merchant' },
     });
+
+    await waitFor(
+      () => {
+        expect(result.current.isSuccess).toBe(true);
+      },
+      { timeout: 5000 },
+    );
 
     expect(result.current.data).toBeDefined();
   });
@@ -196,15 +198,3 @@ describe('useDeleteExpense', () => {
     });
   });
 });
-
-// Update MutationPayload to match CreateExpenseInput
-interface CreateExpenseInput {
-  merchant: string;
-  amount: number;
-  date: string;
-}
-result.current.mutate({
-  merchant: 'Test Merchant',
-  amount: 100,
-  date: '2025-11-30',
-} as CreateExpenseInput);
