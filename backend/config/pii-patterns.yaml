@@ -1,0 +1,233 @@
+# PII Pattern Detection Configuration
+# Version: 1.0
+# Description: Patterns for detecting personally identifiable information in LLM output
+#
+# Confidence Levels:
+# - HIGH: Exact format match with validation
+# - MEDIUM: Format match without validation
+# - LOW: Fuzzy/contextual match
+#
+# Pattern Types:
+# - SSN: Social Security Numbers
+# - ACCOUNT_NUMBER: Bank account numbers
+# - LOAN_NUMBER: Loan identifiers
+# - CREDIT_CARD: Credit card numbers
+# - EMAIL: Email addresses
+# - PHONE: Phone numbers
+
+version: "1.0"
+description: "PII detection patterns for output inspection"
+
+# Global settings
+settings:
+  case_sensitive: false
+  max_matches_per_type: 100
+  enable_validation: true
+
+# Pattern categories
+categories:
+  ssn:
+    enabled: true
+    description: "Social Security Number detection"
+    patterns:
+      - id: "SSN001"
+        name: "Full SSN with dashes"
+        pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+        confidence: HIGH
+        description: "Standard SSN format XXX-XX-XXXX"
+
+      - id: "SSN002"
+        name: "SSN with spaces"
+        pattern: "\\b\\d{3}\\s\\d{2}\\s\\d{4}\\b"
+        confidence: HIGH
+        description: "SSN with spaces XXX XX XXXX"
+
+      - id: "SSN003"
+        name: "Compact SSN (9 digits)"
+        pattern: "(?<!\\d)\\d{9}(?!\\d)"
+        confidence: MEDIUM
+        description: "9 consecutive digits (requires validation)"
+        validation: "ssn_checksum"
+
+      - id: "SSN004"
+        name: "Masked SSN"
+        pattern: "\\b(X{3}|\\*{3})-?(X{2}|\\*{2})-?\\d{4}\\b"
+        confidence: HIGH
+        description: "Partially masked SSN XXX-XX-1234"
+
+      - id: "SSN005"
+        name: "Masked SSN last 4 only"
+        pattern: "\\bSSN:?\\s*\\*{5}\\d{4}\\b"
+        confidence: HIGH
+        description: "SSN with asterisks and last 4 digits"
+
+    # False positive exclusions
+    exclusions:
+      - pattern: "\\b(19|20)\\d{2}[\\-/](0[1-9]|1[0-2])[\\-/](0[1-9]|[12]\\d|3[01])\\b"
+        reason: "Date format YYYY-MM-DD"
+      - pattern: "\\b(0[1-9]|1[0-2])[\\-/](0[1-9]|[12]\\d|3[01])[\\-/](19|20)?\\d{2}\\b"
+        reason: "Date format MM-DD-YYYY"
+
+    # Invalid SSN prefixes (per SSA rules)
+    invalid_prefixes:
+      - "000"
+      - "666"
+      - "900"
+      - "999"
+
+  account_number:
+    enabled: true
+    description: "Bank account number detection"
+    patterns:
+      - id: "ACCT001"
+        name: "Standard account format"
+        pattern: "\\bACCT-[A-Z]-\\d{3,6}\\b"
+        confidence: HIGH
+        description: "Format ACCT-X-123"
+
+      - id: "ACCT002"
+        name: "Account with label"
+        pattern: "\\b[Aa]ccount\\s*#?:?\\s*\\d{6,17}\\b"
+        confidence: MEDIUM
+        description: "Account number with label"
+
+      - id: "ACCT003"
+        name: "Banking account number"
+        pattern: "\\b[Bb]ank\\s*[Aa]ccount:?\\s*\\d{8,17}\\b"
+        confidence: HIGH
+        description: "Bank account number with label"
+
+      - id: "ACCT004"
+        name: "Account ID format"
+        pattern: "\\bACCT\\d{8,12}\\b"
+        confidence: HIGH
+        description: "Account ID with ACCT prefix"
+
+  loan_number:
+    enabled: true
+    description: "Loan number detection"
+    patterns:
+      - id: "LOAN001"
+        name: "Standard loan format"
+        pattern: "\\bLOAN-[A-Z]-\\d{3,6}\\b"
+        confidence: HIGH
+        description: "Format LOAN-X-123"
+
+      - id: "LOAN002"
+        name: "Loan with label"
+        pattern: "\\b[Ll]oan\\s*#?:?\\s*\\d{6,12}\\b"
+        confidence: MEDIUM
+        description: "Loan number with label"
+
+      - id: "LOAN003"
+        name: "Mortgage number"
+        pattern: "\\b[Mm]ortgage\\s*#?:?\\s*\\d{6,12}\\b"
+        confidence: HIGH
+        description: "Mortgage number with label"
+
+      - id: "LOAN004"
+        name: "Loan ID format"
+        pattern: "\\bLN\\d{8,12}\\b"
+        confidence: HIGH
+        description: "Loan ID with LN prefix"
+
+  credit_card:
+    enabled: true
+    description: "Credit card number detection"
+    patterns:
+      - id: "CC001"
+        name: "Credit card with spaces"
+        pattern: "\\b\\d{4}\\s\\d{4}\\s\\d{4}\\s\\d{4}\\b"
+        confidence: HIGH
+        description: "16 digits with space separators"
+        validation: "luhn"
+
+      - id: "CC002"
+        name: "Credit card with dashes"
+        pattern: "\\b\\d{4}-\\d{4}-\\d{4}-\\d{4}\\b"
+        confidence: HIGH
+        description: "16 digits with dash separators"
+        validation: "luhn"
+
+      - id: "CC003"
+        name: "Credit card continuous"
+        pattern: "(?<!\\d)\\d{16}(?!\\d)"
+        confidence: MEDIUM
+        description: "16 consecutive digits"
+        validation: "luhn"
+
+      - id: "CC004"
+        name: "Amex format"
+        pattern: "\\b3[47]\\d{2}[\\s-]?\\d{6}[\\s-]?\\d{5}\\b"
+        confidence: HIGH
+        description: "American Express 15-digit format"
+        validation: "luhn"
+
+      - id: "CC005"
+        name: "Masked credit card"
+        pattern: "\\b(\\d{4}|\\*{4})[\\s-]?(\\*{4})[\\s-]?(\\*{4})[\\s-]?\\d{4}\\b"
+        confidence: HIGH
+        description: "Partially masked card number"
+
+    # Card prefix validation
+    card_prefixes:
+      visa: ["4"]
+      mastercard: ["51", "52", "53", "54", "55", "22", "23", "24", "25", "26", "27"]
+      amex: ["34", "37"]
+      discover: ["6011", "644", "645", "646", "647", "648", "649", "65"]
+
+  email:
+    enabled: true
+    description: "Email address detection"
+    patterns:
+      - id: "EMAIL001"
+        name: "Standard email"
+        pattern: "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b"
+        confidence: HIGH
+        description: "Standard email format"
+
+      - id: "EMAIL002"
+        name: "Email with subaddress"
+        pattern: "\\b[A-Za-z0-9._%+-]+\\+[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b"
+        confidence: HIGH
+        description: "Email with + subaddressing"
+
+  phone:
+    enabled: true
+    description: "Phone number detection"
+    patterns:
+      - id: "PHONE001"
+        name: "US phone with parens"
+        pattern: "\\(\\d{3}\\)\\s*\\d{3}[\\s-]?\\d{4}\\b"
+        confidence: HIGH
+        description: "Format (XXX) XXX-XXXX"
+
+      - id: "PHONE002"
+        name: "US phone with dashes"
+        pattern: "\\b\\d{3}-\\d{3}-\\d{4}\\b"
+        confidence: HIGH
+        description: "Format XXX-XXX-XXXX"
+
+      - id: "PHONE003"
+        name: "US phone with dots"
+        pattern: "\\b\\d{3}\\.\\d{3}\\.\\d{4}\\b"
+        confidence: HIGH
+        description: "Format XXX.XXX.XXXX"
+
+      - id: "PHONE004"
+        name: "US phone with country code"
+        pattern: "\\b\\+1[\\s-]?\\d{3}[\\s-]?\\d{3}[\\s-]?\\d{4}\\b"
+        confidence: HIGH
+        description: "Format +1 XXX XXX XXXX"
+
+      - id: "PHONE005"
+        name: "Phone continuous 10 digits"
+        pattern: "(?<!\\d)\\d{10}(?!\\d)"
+        confidence: MEDIUM
+        description: "10 consecutive digits (may be phone)"
+
+      - id: "PHONE006"
+        name: "International format"
+        pattern: "\\b\\+\\d{1,3}[\\s-]?\\d{1,4}[\\s-]?\\d{1,4}[\\s-]?\\d{1,4}\\b"
+        confidence: MEDIUM
+        description: "International phone format"

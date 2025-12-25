@@ -1,0 +1,17 @@
+# Docker Compose override for SECURE mode (production-like)
+# Usage: docker compose -f docker-compose.yml -f docker-compose.secure.yml up
+
+services:
+  backend:
+    environment:
+      SECURITY_MODE: secure
+      # All security features enabled by default in secure mode
+      # Individual overrides can be uncommented to disable specific features:
+      # INPUT_INSPECTION_ENABLED: "true"
+      # OUTPUT_INSPECTION_ENABLED: "true"
+      # AUDIT_LOGGING_ENABLED: "true"
+      # PROMPT_PROTECTION_ENABLED: "true"
+      # TENANT_ISOLATION_ENABLED: "true"
+      # ANOMALY_DETECTION_ENABLED: "true"
+      # TOOL_RBAC_ENABLED: "true"
+      # TIER2_INSPECTION_ENABLED: "false"

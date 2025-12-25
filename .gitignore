@@ -65,3 +65,9 @@ infrastructure/
 
 # scripts
 scripts/
+
+# agile process files
+bmad/
+.claude/
+chat_support_docs/
+exploitable_features/

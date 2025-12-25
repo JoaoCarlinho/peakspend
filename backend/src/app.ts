@@ -11,7 +11,18 @@ import mlMetricsRoutes from './routes/ml-metrics.routes';
 import insightsRoutes from './routes/insights.routes';
 import trainingDataRoutes from './routes/training-data.routes';
 import consentRoutes from './routes/consent.routes';
+import chatRoutes from './routes/chat.routes';
+import goalsRoutes from './routes/goals.routes';
+import sensitiveDataRoutes from './routes/sensitiveData.routes';
+import reviewQueueRoutes from './audit/reviewQueue.routes';
+import auditRoutes from './audit/audit.routes';
+import adminRoutes from './routes/admin.routes';
+import healthRoutes from './routes/health.routes';
+import securityFlagsRoutes from './routes/securityFlags.routes';
+import securityEventsRoutes from './routes/securityEvents.routes';
+import securityStatsRoutes from './routes/securityStats.routes';
 import { errorHandler } from './middleware/error.middleware';
+import { inputInspectorMiddleware } from './llm/guardrails';
 
 const app: Application = express();
 
@@ -21,22 +32,39 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check endpoint
-app.get('/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+// Health check endpoints (including /health/security for security mode status)
+app.use('/', healthRoutes);
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/consent', consentRoutes);
 app.use('/api/expenses', expenseRoutes);
-app.use('/api/receipts', receiptRoutes);
+
+// Apply input inspection middleware to LLM-powered endpoints
+// This must be applied BEFORE the route handlers
+app.use('/api/receipts', inputInspectorMiddleware, receiptRoutes);
+app.use('/api/insights', inputInspectorMiddleware, insightsRoutes);
+app.use('/api/chat', inputInspectorMiddleware, chatRoutes);
+
+// Goals and sensitive data routes - tenant isolation enforced at service level
+app.use('/api/goals', goalsRoutes);
+app.use('/api/user', sensitiveDataRoutes);
+
 app.use('/api/categories', categoryRoutes);
 app.use('/api/ml-inference', mlInferenceRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/ml-metrics', mlMetricsRoutes);
-app.use('/api/insights', insightsRoutes);
 app.use('/api/training-data', trainingDataRoutes);
+
+// Security/audit routes (require security role)
+app.use('/api/security/review-queue', reviewQueueRoutes);
+app.use('/api/security/events', securityEventsRoutes);
+app.use('/api/security/stats', securityStatsRoutes);
+app.use('/api/audit', auditRoutes);
+
+// Admin routes (require admin role)
+app.use('/api/admin', adminRoutes);
+app.use('/api/admin/security-flags', securityFlagsRoutes);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

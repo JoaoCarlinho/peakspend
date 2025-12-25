@@ -42,7 +42,7 @@ export class OcrService {
       secretAccessKey === 'your-secret-key'
     ) {
       if (!isTestEnv) {
-        console.warn(
+        logger.warn(
           '⚠️  AWS Textract credentials not configured. Using mock OCR for development. ' +
             'Receipt processing will return simulated data.'
         );
@@ -55,7 +55,11 @@ export class OcrService {
           accessKeyId,
           secretAccessKey,
         },
+        // Adaptive retry with exponential backoff for handling throttling
+        maxAttempts: 3,
+        retryMode: 'adaptive',
       });
+      logger.info('🔍 AWS Textract client initialized with adaptive retry logic');
     }
   }
 

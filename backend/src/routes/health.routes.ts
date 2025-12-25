@@ -1,7 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { getPrismaClient } from '../config/database';
 import { MetricsCollector } from '../utils/metrics';
+import { getPromptManager } from '../llm/prompts';
 import logger from '../config/logger';
+import { securityConfigService } from '../security';
 
 const router = Router();
 
@@ -38,8 +40,23 @@ router.get('/health', async (_req: Request, res: Response) => {
  * Detailed health check with all system components
  */
 router.get('/health/detailed', async (_req: Request, res: Response) => {
-  const checks = {
+  const checks: {
+    database: boolean;
+    promptManager: {
+      initialized: boolean;
+      integrityVerified: boolean;
+      promptCount: number;
+    };
+    uptime: number;
+    memory: NodeJS.MemoryUsage;
+    timestamp: string;
+  } = {
     database: false,
+    promptManager: {
+      initialized: false,
+      integrityVerified: false,
+      promptCount: 0,
+    },
     uptime: process.uptime(),
     memory: process.memoryUsage(),
     timestamp: new Date().toISOString(),
@@ -51,6 +68,19 @@ router.get('/health/detailed', async (_req: Request, res: Response) => {
     checks.database = true;
   } catch (error) {
     logger.error('Database health check failed', { error });
+  }
+
+  // Check PromptManager status
+  try {
+    const promptManager = getPromptManager();
+    const health = promptManager.getHealthStatus();
+    checks.promptManager = {
+      initialized: health.initialized,
+      integrityVerified: health.integrityVerified,
+      promptCount: health.promptCount,
+    };
+  } catch (error) {
+    logger.error('PromptManager health check failed', { error });
   }
 
   const overallHealthy = checks.database;
@@ -103,6 +133,34 @@ router.get('/health/ready', async (_req: Request, res: Response) => {
 router.get('/health/live', (_req: Request, res: Response) => {
   // Simple liveness check - service is running
   res.status(200).json({ alive: true });
+});
+
+/**
+ * GET /health/security
+ * Security mode and feature flag status endpoint
+ * Used by the frontend to display current security state
+ */
+router.get('/health/security', (_req: Request, res: Response) => {
+  try {
+    const status = securityConfigService.getSecurityStatus();
+
+    res.status(200).json({
+      status: 'ok',
+      security: {
+        mode: status.mode,
+        isVulnerable: status.mode === 'vulnerable',
+        flags: status.flags,
+        initializedAt: status.initializedAt,
+        uptimeMs: status.uptimeMs,
+      },
+    });
+  } catch (error) {
+    logger.error('Security status check failed', { error });
+    res.status(500).json({
+      status: 'error',
+      error: 'Failed to retrieve security status',
+    });
+  }
 });
 
 export default router;

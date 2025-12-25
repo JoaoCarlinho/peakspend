@@ -12,6 +12,7 @@ import { MLDashboardPage } from './pages/MLDashboardPage';
 import { ConsentSettingsPage } from './pages/ConsentSettingsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ChatPage } from './pages/ChatPage';
 
 const theme = createTheme({
   palette: {
@@ -110,6 +111,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <SettingsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ChatPage />
                   </Layout>
                 </ProtectedRoute>
               }

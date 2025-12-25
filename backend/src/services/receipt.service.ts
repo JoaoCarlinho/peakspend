@@ -1,13 +1,20 @@
 import { ollamaService } from './ollama.service';
+import { bedrockService } from './bedrock.service';
+import logger from '../config/logger';
 
 /**
  * Receipt Processing Service
- * USE CASE 1: Receipt OCR Enhancement with Ollama
+ * USE CASE 1: Receipt OCR Enhancement with LLM (Bedrock or Ollama)
  *
  * Workflow:
  * 1. AWS Textract extracts raw text from receipt image
- * 2. Ollama LLM structures the text into expense data
+ * 2. LLM (Bedrock in production, Ollama in development) structures the text
  * 3. Returns structured data for expense creation
+ *
+ * LLM Provider Selection:
+ * - LLM_PROVIDER=bedrock → Uses AWS Bedrock (production)
+ * - LLM_PROVIDER=ollama → Uses Ollama (development)
+ * - Neither available → Falls back to rule-based parsing
  */
 
 export interface RawOCRResult {
@@ -31,21 +38,48 @@ export interface EnhancedReceiptData {
   }>;
   suggestedCategory: string;
   confidence: number;
-  processingMethod: 'ollama' | 'fallback';
+  processingMethod: 'bedrock' | 'ollama' | 'fallback';
   rawText: string;
 }
 
 export class ReceiptService {
   /**
-   * Process receipt with Ollama enhancement
+   * Process receipt with LLM enhancement (Bedrock or Ollama)
    * This is the main entry point for receipt processing
+   *
+   * Priority: Bedrock (production) → Ollama (development) → Fallback (rule-based)
    */
   async processReceipt(rawOcrResult: RawOCRResult): Promise<EnhancedReceiptData> {
+    // Try Bedrock first (production)
+    const isBedrockAvailable = await bedrockService.isAvailable();
+
+    if (isBedrockAvailable) {
+      try {
+        logger.info('🤖 Using AWS Bedrock for receipt OCR enhancement');
+        const structured = await bedrockService.enhanceReceiptOCR(rawOcrResult.text);
+
+        return {
+          merchant: structured.merchant,
+          amount: structured.amount,
+          date: structured.date,
+          items: structured.items || [],
+          suggestedCategory: structured.category_hint || 'Other',
+          confidence: structured.confidence,
+          processingMethod: 'bedrock',
+          rawText: rawOcrResult.text,
+        };
+      } catch (error) {
+        logger.error('Bedrock receipt processing failed, trying Ollama:', error);
+        // Fall through to Ollama
+      }
+    }
+
+    // Try Ollama second (development)
     const isOllamaAvailable = await ollamaService.isAvailable();
 
     if (isOllamaAvailable) {
       try {
-        // USE CASE 1: Ollama-enhanced OCR parsing
+        logger.info('🦙 Using Ollama for receipt OCR enhancement');
         const structured = await ollamaService.enhanceReceiptOCR(rawOcrResult.text);
 
         return {
@@ -59,13 +93,14 @@ export class ReceiptService {
           rawText: rawOcrResult.text,
         };
       } catch (error) {
-        console.error('Ollama receipt processing failed, falling back:', error);
+        logger.error('Ollama receipt processing failed, falling back:', error);
         return this.fallbackProcessing(rawOcrResult);
       }
-    } else {
-      // Fallback to rule-based parsing
-      return this.fallbackProcessing(rawOcrResult);
     }
+
+    // Fallback to rule-based parsing
+    logger.info('📝 Using rule-based fallback for receipt processing');
+    return this.fallbackProcessing(rawOcrResult);
   }
 
   /**

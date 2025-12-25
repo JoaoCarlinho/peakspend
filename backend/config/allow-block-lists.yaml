@@ -1,0 +1,131 @@
+# Allow/Block Lists Configuration
+# Version: 1.0
+# Description: Configurable allow and block lists for input inspection
+#
+# Allow List:
+# - Patterns that should bypass inspection entirely
+# - Checked FIRST - if match, input is immediately ALLOWED
+# - Use for known-safe queries that might trigger false positives
+#
+# Block List:
+# - Patterns that should always be blocked
+# - Checked SECOND - if match, input is immediately BLOCKED
+# - Use for known attacks, banned phrases, or policy violations
+#
+# Entry Types:
+# - exact: Case-insensitive substring match
+# - regex: Full regex pattern (use carefully - can be slow)
+
+version: "1.0"
+description: "Allow and block lists for input inspection"
+
+# Allow list - safe patterns that bypass inspection
+allow_list:
+  # Common expense queries that are definitely safe
+  - id: "ALLOW001"
+    pattern: "what (is|are) my expenses"
+    type: "regex"
+    reason: "Common expense query pattern"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "ALLOW002"
+    pattern: "show me receipts from"
+    type: "exact"
+    reason: "Receipt retrieval pattern"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "ALLOW003"
+    pattern: "how much did i spend"
+    type: "exact"
+    reason: "Spending summary query"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "ALLOW004"
+    pattern: "categorize this expense"
+    type: "exact"
+    reason: "Expense categorization request"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "ALLOW005"
+    pattern: "my spending (this|last) (week|month|year)"
+    type: "regex"
+    reason: "Time-based spending query"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+# Block list - known attack patterns
+block_list:
+  # Known jailbreak attempts
+  - id: "BLOCK001"
+    pattern: "DAN mode"
+    type: "exact"
+    reason: "Known jailbreak attempt (Do Anything Now)"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "BLOCK002"
+    pattern: "developer mode enabled"
+    type: "exact"
+    reason: "Known jailbreak attempt"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "BLOCK003"
+    pattern: "jailbreak"
+    type: "exact"
+    reason: "Explicit jailbreak reference"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "BLOCK004"
+    pattern: "evil mode"
+    type: "exact"
+    reason: "Known attack pattern"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "BLOCK005"
+    pattern: "chaos mode"
+    type: "exact"
+    reason: "Known attack pattern"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "BLOCK006"
+    pattern: "godmode"
+    type: "exact"
+    reason: "Known attack pattern"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "BLOCK007"
+    pattern: "bypass all filters"
+    type: "exact"
+    reason: "Explicit filter bypass request"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "BLOCK008"
+    pattern: "disable safety"
+    type: "exact"
+    reason: "Safety disable request"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "BLOCK009"
+    pattern: "remove all restrictions"
+    type: "exact"
+    reason: "Restriction removal request"
+    added_by: "system"
+    added_at: "2024-12-14"
+
+  - id: "BLOCK010"
+    pattern: "pretend you have no rules"
+    type: "exact"
+    reason: "Rule bypass attempt"
+    added_by: "system"
+    added_at: "2024-12-14"

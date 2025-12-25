@@ -1,0 +1,107 @@
+# Alert Configuration
+# Version: 1.0
+# Description: PeakSpend Security Alert Configuration
+#
+# This configuration file controls alert thresholds, destinations, and behavior.
+# Environment variables can override values using ${VAR_NAME} syntax.
+# Configuration can be reloaded at runtime via SIGHUP signal or admin API.
+#
+# Environment Variable Overrides:
+# - ALERT_RAPID_REQUESTS_THRESHOLD: Override rapidRequestsPerMinute
+# - ALERT_SEQUENTIAL_BLOCKS_THRESHOLD: Override sequentialBlocksToFlag
+# - ALERT_PROBING_VECTORS_THRESHOLD: Override probingVectorThreshold
+# - ALERT_SUPPRESSION_WINDOW_MS: Override suppression windowMs
+# - ALERT_SUPPRESSION_CONFIDENCE_INCREASE: Override suppression confidenceIncrease
+# - ALERT_RETRY_MAX_ATTEMPTS: Override retry maxAttempts
+# - ALERT_RETRY_BACKOFF_MULTIPLIER: Override retry backoffMultiplier
+# - ALERT_RETRY_INITIAL_DELAY_MS: Override retry initialDelayMs
+# - ALERT_CONFIG_PATH: Custom path to this config file
+
+version: "1.0"
+description: "PeakSpend Security Alert Configuration"
+
+# Anomaly detection thresholds
+# These are used by the AnomalyDetectorService to identify attack patterns
+thresholds:
+  # Requests per minute above which triggers rapid request alert
+  rapidRequestsPerMinute: 10
+
+  # Number of consecutive blocked requests to flag as sequential injection
+  sequentialBlocksToFlag: 3
+
+  # Number of unique attack vector types to flag as probing behavior
+  probingVectorThreshold: 3
+
+  # Average anomaly score increase per request to flag escalation (0.0-1.0)
+  escalationTrendThreshold: 0.1
+
+# Severity classification thresholds
+# Overall confidence scores map to severity levels
+severityThresholds:
+  # Score >= critical triggers CRITICAL severity
+  critical: 0.9
+
+  # Score >= high triggers HIGH severity
+  high: 0.7
+
+  # Score >= medium triggers MEDIUM severity
+  medium: 0.5
+
+  # Score < medium triggers LOW severity
+
+# Alert destinations
+# Each destination receives alerts based on configured severity levels
+destinations:
+  # Webhook destination for Slack/Teams/custom integrations
+  - name: "security-webhook"
+    type: "webhook"
+    enabled: true
+    config:
+      # URL is loaded from environment variable
+      url: "${ALERT_WEBHOOK_URL}"
+      headers:
+        Content-Type: "application/json"
+        # Authorization header loaded from environment variable
+        Authorization: "${ALERT_WEBHOOK_AUTH}"
+      timeoutMs: 10000
+    severities:
+      - "LOW"
+      - "MEDIUM"
+      - "HIGH"
+      - "CRITICAL"
+
+  # Email destination for security team
+  - name: "security-team-email"
+    type: "email"
+    enabled: true
+    config:
+      # Recipients loaded from environment (comma-separated in env var)
+      recipients:
+        - "${ALERT_EMAIL_PRIMARY}"
+      smtpHost: "${SMTP_HOST}"
+      smtpPort: 587
+      smtpUser: "${SMTP_USER}"
+      smtpPass: "${SMTP_PASS}"
+      from: "security-alerts@peakspend.com"
+    severities:
+      - "HIGH"
+      - "CRITICAL"
+
+# Duplicate alert suppression settings
+suppression:
+  # Window in milliseconds during which duplicate alerts are suppressed
+  windowMs: 300000  # 5 minutes
+
+  # Re-alert if confidence increases by this amount above previous alert
+  confidenceIncrease: 0.2
+
+# Retry configuration for failed alert delivery
+retry:
+  # Maximum number of delivery attempts
+  maxAttempts: 5
+
+  # Multiplier for exponential backoff (delay = initialDelay * multiplier^attempt)
+  backoffMultiplier: 2
+
+  # Initial delay in milliseconds before first retry
+  initialDelayMs: 1000
