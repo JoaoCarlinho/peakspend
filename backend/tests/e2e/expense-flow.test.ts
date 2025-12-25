@@ -49,6 +49,22 @@ describe('E2E: Complete Expense Workflow', () => {
     });
     testUserId = user.id;
 
+    // Create default categories for test user (simulates seed data)
+    const defaultCategories = [
+      { name: 'Groceries', color: '#4CAF50', icon: 'shopping_cart' },
+      { name: 'Transportation', color: '#2196F3', icon: 'directions_car' },
+      { name: 'Entertainment', color: '#9C27B0', icon: 'movie' },
+      { name: 'Utilities', color: '#FF9800', icon: 'bolt' },
+    ];
+
+    await prisma.category.createMany({
+      data: defaultCategories.map((cat) => ({
+        ...cat,
+        userId: testUserId,
+        isDefault: true,
+      })),
+    });
+
     // Generate JWT token for authentication
     authToken = signToken({
       userId: testUserId,
