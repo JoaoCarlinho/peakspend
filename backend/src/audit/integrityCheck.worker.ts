@@ -160,7 +160,7 @@ export function startIntegrityCheckWorker(): void {
  */
 export function stopIntegrityCheckWorker(): void {
   if (scheduledTask) {
-    scheduledTask.stop();
+    void scheduledTask.stop();
     scheduledTask = null;
     logger.info('Integrity check worker stopped', {
       event: 'INTEGRITY_WORKER_STOPPED',
