@@ -64,7 +64,7 @@ export const BankAccountList: React.FC = () => {
       const data = await sensitiveDataService.getBankAccounts();
       setAccounts(data);
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Failed to load bank accounts');
     } finally {
       setLoading(false);
@@ -93,7 +93,7 @@ export const BankAccountList: React.FC = () => {
         bankName: '',
         accountType: 'checking',
       });
-    } catch (err) {
+    } catch {
       setError('Failed to add bank account');
     } finally {
       setFormLoading(false);
@@ -105,7 +105,7 @@ export const BankAccountList: React.FC = () => {
     try {
       const details = await sensitiveDataService.getBankAccountDetails(id);
       setDetailsDialog(details);
-    } catch (err) {
+    } catch {
       setError('Failed to load account details');
     } finally {
       setLoadingDetails(false);
@@ -119,7 +119,7 @@ export const BankAccountList: React.FC = () => {
     try {
       await sensitiveDataService.deleteBankAccount(id);
       setAccounts((prev) => prev.filter((a) => a.id !== id));
-    } catch (err) {
+    } catch {
       setError('Failed to delete bank account');
     }
   };

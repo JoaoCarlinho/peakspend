@@ -144,7 +144,7 @@ export function startIntegrityCheckWorker(): void {
   scheduledTask = cron.schedule(schedule, async () => {
     try {
       await runIntegrityCheck();
-    } catch (error) {
+    } catch {
       // Error already logged in runIntegrityCheck
     }
   });

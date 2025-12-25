@@ -6,6 +6,7 @@ import type { UserRole } from '../generated/prisma';
 
 // Extend Express Request to include userRole
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       userRole?: UserRole;

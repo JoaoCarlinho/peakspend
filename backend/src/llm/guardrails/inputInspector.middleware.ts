@@ -24,6 +24,7 @@ import { escalationService } from './escalation.service';
 
 // Extend Express Request to include inspection result
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       inspectionResult?: InspectionResult;
@@ -181,7 +182,7 @@ export function createInputInspectorMiddleware(
             patternsMatched: result.reasoning.patternsMatched.length,
           });
 
-        case 'ESCALATE':
+        case 'ESCALATE': {
           // Escalate to human review queue - creates SecurityEvent record
           const anomalyScore: AnomalyScore = {
             score: result.reasoning.anomalyScore,
@@ -208,6 +209,7 @@ export function createInputInspectorMiddleware(
           });
 
           throw new EscalatedRequestError(escalationResult.eventId);
+        }
       }
     } catch (error) {
       // Re-throw our custom errors

@@ -79,7 +79,7 @@ export const AddGoalForm: React.FC<AddGoalFormProps> = ({
         deadline,
       });
       handleClose();
-    } catch (err) {
+    } catch {
       setError('Failed to create goal. Please try again.');
     } finally {
       setLoading(false);

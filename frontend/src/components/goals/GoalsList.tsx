@@ -72,7 +72,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({ categories = [] }) => {
     try {
       await goalsService.deleteGoal(goalId);
       setGoals((prev) => prev.filter((g) => g.id !== goalId));
-    } catch (err) {
+    } catch {
       setError('Failed to delete goal');
     }
   };
@@ -96,7 +96,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({ categories = [] }) => {
       setGoals((prev) => prev.map((g) => (g.id === selectedGoalId ? updatedGoal : g)));
       setProgressDialogOpen(false);
       setSelectedGoalId(null);
-    } catch (err) {
+    } catch {
       setError('Failed to update progress');
     }
   };

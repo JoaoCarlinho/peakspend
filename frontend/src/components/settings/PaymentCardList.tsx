@@ -69,7 +69,7 @@ export const PaymentCardList: React.FC = () => {
       const data = await sensitiveDataService.getPaymentCards();
       setCards(data);
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Failed to load payment cards');
     } finally {
       setLoading(false);
@@ -98,7 +98,7 @@ export const PaymentCardList: React.FC = () => {
         cardholderName: '',
         nickname: '',
       });
-    } catch (err) {
+    } catch {
       setError('Failed to add payment card. Please check the card details.');
     } finally {
       setFormLoading(false);
@@ -110,7 +110,7 @@ export const PaymentCardList: React.FC = () => {
     try {
       const details = await sensitiveDataService.getPaymentCardDetails(id);
       setDetailsDialog(details);
-    } catch (err) {
+    } catch {
       setError('Failed to load card details');
     } finally {
       setLoadingDetails(false);
@@ -124,7 +124,7 @@ export const PaymentCardList: React.FC = () => {
     try {
       await sensitiveDataService.deletePaymentCard(id);
       setCards((prev) => prev.filter((c) => c.id !== id));
-    } catch (err) {
+    } catch {
       setError('Failed to delete payment card');
     }
   };
