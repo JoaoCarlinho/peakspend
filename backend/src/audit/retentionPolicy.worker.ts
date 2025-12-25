@@ -81,7 +81,7 @@ export function startRetentionWorker(): void {
  */
 export function stopRetentionWorker(): void {
   if (scheduledTask) {
-    scheduledTask.stop();
+    void scheduledTask.stop();
     scheduledTask = null;
     logger.info('Retention worker stopped', {
       event: 'RETENTION_WORKER_STOPPED',

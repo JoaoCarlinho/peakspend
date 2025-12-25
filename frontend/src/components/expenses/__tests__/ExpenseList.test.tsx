@@ -286,7 +286,8 @@ describe('ExpenseList', () => {
     });
 
     // Dates should be formatted like "Nov 1, 2025"
-    const dateCell = screen.getByText(/Nov/i);
-    expect(dateCell).toBeInTheDocument();
+    const dateCells = screen.getAllByText(/Nov.*2025/i);
+    expect(dateCells.length).toBeGreaterThan(0);
+    expect(dateCells[0]).toBeInTheDocument();
   });
 });
