@@ -147,10 +147,10 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           cd backend
-          docker build -t $ECR_REGISTRY/peakspend-backend:$IMAGE_TAG .
-          docker tag $ECR_REGISTRY/peakspend-backend:$IMAGE_TAG $ECR_REGISTRY/peakspend-backend:latest
-          docker push $ECR_REGISTRY/peakspend-backend:$IMAGE_TAG
-          docker push $ECR_REGISTRY/peakspend-backend:latest
+          docker build -t $ECR_REGISTRY/peakspend-production-backend:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/peakspend-production-backend:$IMAGE_TAG $ECR_REGISTRY/peakspend-production-backend:latest
+          docker push $ECR_REGISTRY/peakspend-production-backend:$IMAGE_TAG
+          docker push $ECR_REGISTRY/peakspend-production-backend:latest
 
       - name: Build and push ML service image
         env:
@@ -158,10 +158,10 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           cd ml-service
-          docker build -t $ECR_REGISTRY/peakspend-ml:$IMAGE_TAG .
-          docker tag $ECR_REGISTRY/peakspend-ml:$IMAGE_TAG $ECR_REGISTRY/peakspend-ml:latest
-          docker push $ECR_REGISTRY/peakspend-ml:$IMAGE_TAG
-          docker push $ECR_REGISTRY/peakspend-ml:latest
+          docker build -t $ECR_REGISTRY/peakspend-production-ml-service:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/peakspend-production-ml-service:$IMAGE_TAG $ECR_REGISTRY/peakspend-production-ml-service:latest
+          docker push $ECR_REGISTRY/peakspend-production-ml-service:$IMAGE_TAG
+          docker push $ECR_REGISTRY/peakspend-production-ml-service:latest
 
       - name: Run database migrations
         env:
@@ -174,16 +174,16 @@ jobs:
       - name: Deploy backend to ECS
         run: |
           aws ecs update-service \
-            --cluster peakspend-cluster \
-            --service peakspend-backend \
+            --cluster peakspend-production \
+            --service backend \
             --force-new-deployment \
             --region us-east-1
 
       - name: Deploy ML service to ECS
         run: |
           aws ecs update-service \
-            --cluster peakspend-cluster \
-            --service peakspend-ml \
+            --cluster peakspend-production \
+            --service ml-service \
             --force-new-deployment \
             --region us-east-1
 
@@ -191,14 +191,14 @@ jobs:
         run: |
           echo "Waiting for backend deployment..."
           aws ecs wait services-stable \
-            --cluster peakspend-cluster \
-            --services peakspend-backend \
+            --cluster peakspend-production \
+            --services backend \
             --region us-east-1
 
           echo "Waiting for ML service deployment..."
           aws ecs wait services-stable \
-            --cluster peakspend-cluster \
-            --services peakspend-ml \
+            --cluster peakspend-production \
+            --services ml-service \
             --region us-east-1
 
           echo "ECS deployments completed successfully!"
