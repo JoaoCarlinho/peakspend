@@ -163,7 +163,7 @@ export const GoalsList: React.FC<GoalsListProps> = ({ categories = [] }) => {
       ) : (
         <Grid container spacing={2}>
           {filteredGoals.map((goal) => (
-            <Grid item xs={12} sm={6} md={4} key={goal.id}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={goal.id}>
               <GoalCard
                 goal={goal}
                 onDelete={handleDeleteGoal}

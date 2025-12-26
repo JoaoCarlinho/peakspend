@@ -159,10 +159,10 @@ export function SettingsPage() {
         {/* Payment Methods Tab */}
         <TabPanel value={tabValue} index={2}>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <BankAccountList />
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <PaymentCardList />
             </Grid>
           </Grid>

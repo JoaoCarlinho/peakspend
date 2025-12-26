@@ -49,6 +49,22 @@ describe('E2E: Complete Expense Workflow', () => {
     });
     testUserId = user.id;
 
+    // Create default categories for test user (simulates seed data)
+    const defaultCategories = [
+      { name: 'Groceries', color: '#4CAF50' },
+      { name: 'Transportation', color: '#2196F3' },
+      { name: 'Entertainment', color: '#9C27B0' },
+      { name: 'Utilities', color: '#FF9800' },
+    ];
+
+    await prisma.category.createMany({
+      data: defaultCategories.map((cat) => ({
+        ...cat,
+        userId: testUserId,
+        isDefault: true,
+      })),
+    });
+
     // Generate JWT token for authentication
     authToken = signToken({
       userId: testUserId,
@@ -735,7 +751,7 @@ describe('E2E: Complete Expense Workflow', () => {
         .set('Authorization', `Bearer ${authToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('status', 'ok');
+      expect(response.body).toHaveProperty('status', 'healthy');
       expect(response.body).toHaveProperty('timestamp');
     });
   });

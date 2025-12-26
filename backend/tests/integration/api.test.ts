@@ -687,7 +687,7 @@ describe('Integration Tests: API Contracts', () => {
         .expect(200);
 
       expect(response.body).toMatchObject({
-        status: 'ok',
+        status: 'healthy',
         timestamp: expect.any(String),
       });
     });

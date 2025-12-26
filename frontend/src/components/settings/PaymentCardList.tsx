@@ -42,7 +42,7 @@ const cardTypeColors: Record<string, 'primary' | 'secondary' | 'success' | 'warn
   mastercard: 'secondary',
   amex: 'info',
   discover: 'warning',
-  unknown: 'default',
+  unknown: 'secondary',
 };
 
 export const PaymentCardList: React.FC = () => {
@@ -230,7 +230,7 @@ export const PaymentCardList: React.FC = () => {
                 inputProps={{ maxLength: 19 }}
               />
               <Grid container spacing={2}>
-                <Grid item xs={6}>
+                <Grid size={6}>
                   <TextField
                     label="Expiry Month"
                     type="number"
@@ -242,7 +242,7 @@ export const PaymentCardList: React.FC = () => {
                     fullWidth
                   />
                 </Grid>
-                <Grid item xs={6}>
+                <Grid size={6}>
                   <TextField
                     label="Expiry Year"
                     select
