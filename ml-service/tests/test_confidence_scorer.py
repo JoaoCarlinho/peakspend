@@ -14,7 +14,7 @@ class TestConfidenceScorer:
 
     def setup_method(self):
         """Set up test fixtures."""
-        self.scorer = ConfidenceScorer()
+        self.scorer = ConfidenceScorer(user_id='test_user')
 
     def test_score_basic(self):
         """Test basic confidence scoring."""
