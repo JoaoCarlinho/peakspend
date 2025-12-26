@@ -166,13 +166,25 @@ jobs:
       # Note: Database migrations run at container startup (see backend/Dockerfile)
       # Running migrations here would fail as GitHub Actions cannot reach the private RDS
 
-      - name: Deploy backend to ECS
+      - name: Deploy backend to App Runner
         run: |
-          aws ecs update-service \
-            --cluster peakspend-production \
-            --service backend \
-            --force-new-deployment \
+          # Get the App Runner service ARN
+          SERVICE_ARN=$(aws apprunner list-services \
+            --query "ServiceSummaryList[?ServiceName=='peakspend-production-backend'].ServiceArn" \
+            --output text \
+            --region us-east-1)
+
+          if [ -z "$SERVICE_ARN" ] || [ "$SERVICE_ARN" == "None" ]; then
+            echo "::error::App Runner service 'peakspend-production-backend' not found"
+            exit 1
+          fi
+
+          echo "Starting deployment for App Runner service: $SERVICE_ARN"
+          aws apprunner start-deployment \
+            --service-arn "$SERVICE_ARN" \
             --region us-east-1
+
+          echo "App Runner deployment initiated"
 
       - name: Deploy ML service to ECS
         run: |
@@ -182,21 +194,48 @@ jobs:
             --force-new-deployment \
             --region us-east-1
 
-      - name: Wait for ECS deployments to complete
+      - name: Wait for deployments to complete
         run: |
-          echo "Waiting for backend deployment..."
-          aws ecs wait services-stable \
-            --cluster peakspend-production \
-            --services backend \
-            --region us-east-1
-
-          echo "Waiting for ML service deployment..."
+          echo "Waiting for ML service ECS deployment..."
           aws ecs wait services-stable \
             --cluster peakspend-production \
             --services ml-service \
             --region us-east-1
+          echo "ML service deployment completed!"
 
-          echo "ECS deployments completed successfully!"
+          # App Runner deployments are async - check status
+          echo "Checking App Runner backend deployment status..."
+          SERVICE_ARN=$(aws apprunner list-services \
+            --query "ServiceSummaryList[?ServiceName=='peakspend-production-backend'].ServiceArn" \
+            --output text \
+            --region us-east-1)
+
+          # Wait for App Runner to finish deployment (max 10 minutes)
+          for i in {1..60}; do
+            STATUS=$(aws apprunner describe-service \
+              --service-arn "$SERVICE_ARN" \
+              --query "Service.Status" \
+              --output text \
+              --region us-east-1)
+
+            echo "App Runner status: $STATUS (attempt $i/60)"
+
+            if [ "$STATUS" == "RUNNING" ]; then
+              echo "App Runner deployment completed successfully!"
+              break
+            elif [ "$STATUS" == "CREATE_FAILED" ] || [ "$STATUS" == "DELETE_FAILED" ] || [ "$STATUS" == "OPERATION_IN_PROGRESS" ]; then
+              if [ "$STATUS" == "OPERATION_IN_PROGRESS" ]; then
+                sleep 10
+                continue
+              fi
+              echo "::error::App Runner deployment failed with status: $STATUS"
+              exit 1
+            fi
+
+            sleep 10
+          done
+
+          echo "All deployments completed successfully!"
 
       - name: Setup Node.js for frontend build
         uses: actions/setup-node@v4
@@ -246,9 +285,9 @@ jobs:
       - name: Notify deployment success
         if: success()
         run: |
-          echo "::notice title=Deployment Success::All services deployed successfully to ECS"
+          echo "::notice title=Deployment Success::Backend (App Runner), ML Service (ECS), and Frontend (S3/CloudFront) deployed successfully"
 
       - name: Notify deployment failure
         if: failure()
         run: |
-          echo "::error title=Deployment Failed::Deployment to ECS failed. Check logs for details."
+          echo "::error title=Deployment Failed::Deployment failed. Check logs for details."
