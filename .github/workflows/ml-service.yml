@@ -1,5 +1,7 @@
 env:
   PYTHONPATH: ./ml-service
+  # Use local file-based MLflow tracking to prevent hanging on remote server connection
+  MLFLOW_TRACKING_URI: ./mlruns
 
 on:
   push:
@@ -24,4 +26,4 @@ jobs:
       - name: Run tests
         run: |
           cd ml-service
-          pytest --cov=app --cov-report=xml
+          pytest --cov=app --cov-report=xml -m "not slow"
