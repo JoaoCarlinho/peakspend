@@ -163,13 +163,8 @@ jobs:
           docker push $ECR_REGISTRY/peakspend-production-ml-service:$IMAGE_TAG
           docker push $ECR_REGISTRY/peakspend-production-ml-service:latest
 
-      - name: Run database migrations
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          cd backend
-          npm ci
-          npx prisma migrate deploy
+      # Note: Database migrations run at container startup (see backend/Dockerfile)
+      # Running migrations here would fail as GitHub Actions cannot reach the private RDS
 
       - name: Deploy backend to ECS
         run: |
