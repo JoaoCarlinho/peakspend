@@ -28,8 +28,8 @@ export interface FlagWithMetadata {
   effectiveValue: boolean;
   modeDefault: boolean;
   isOverridden: boolean;
-  overriddenAt?: string;
-  overriddenBy?: string;
+  overriddenAt?: string | undefined;
+  overriddenBy?: string | undefined;
 }
 
 /**

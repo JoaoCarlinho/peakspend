@@ -193,7 +193,7 @@ export class ToolPermissionsService {
         throw error;
       }
 
-      if (error instanceof yaml.YAMLException) {
+      if (error instanceof Error && error.name === 'YAMLException') {
         throw new ToolPermissionsConfigError(
           `YAML parse error: ${error.message}`,
           this.configPath,

@@ -95,11 +95,11 @@ router.get('/', async (req: Request, res: Response) => {
   try {
     const prisma = getPrismaClient();
 
-    const limit = Math.min(parseInt(req.query.limit as string) || 100, 500);
-    const offset = parseInt(req.query.offset as string) || 0;
-    const eventType = req.query.type as string | undefined;
-    const severity = req.query.severity as string | undefined;
-    const userId = req.query.userId as string | undefined;
+    const limit = Math.min(parseInt(req.query['limit'] as string) || 100, 500);
+    const offset = parseInt(req.query['offset'] as string) || 0;
+    const eventType = req.query['type'] as string | undefined;
+    const severity = req.query['severity'] as string | undefined;
+    const userId = req.query['userId'] as string | undefined;
 
     // Build where clause
     const where: {
@@ -166,11 +166,11 @@ router.get('/stream', (req: Request, res: Response) => {
     severities?: string[];
   } = {};
 
-  if (req.query.types) {
-    filters.eventTypes = (req.query.types as string).split(',');
+  if (req.query['types']) {
+    filters.eventTypes = (req.query['types'] as string).split(',');
   }
-  if (req.query.severities) {
-    filters.severities = (req.query.severities as string).split(',');
+  if (req.query['severities']) {
+    filters.severities = (req.query['severities'] as string).split(',');
   }
 
   // Register client with broadcaster
