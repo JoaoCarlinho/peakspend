@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Chip, Tooltip, Box, Typography, CircularProgress } from '@mui/material';
 import { Shield as ShieldIcon, Warning as WarningIcon } from '@mui/icons-material';
+import { apiClient } from '../../services/api';
 
 /**
  * Security status response from /health/security endpoint
@@ -52,12 +53,8 @@ export function SecurityModeIndicator() {
   useEffect(() => {
     const fetchSecurityStatus = async () => {
       try {
-        const response = await fetch('/health/security');
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        const data: SecurityStatusResponse = await response.json();
-        setStatus(data.security);
+        const response = await apiClient.get<SecurityStatusResponse>('/health/security');
+        setStatus(response.data.security);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch security status');
