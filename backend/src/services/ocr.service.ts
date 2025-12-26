@@ -26,35 +26,16 @@ export class OcrService {
   constructor() {
     const region = process.env['AWS_REGION'] || 'us-east-1';
     this.s3BucketName = process.env['S3_BUCKET_NAME'] || 'peakspend-receipts-dev';
-    const accessKeyId = process.env['AWS_ACCESS_KEY_ID'] || '';
-    const secretAccessKey = process.env['AWS_SECRET_ACCESS_KEY'] || '';
     const isTestEnv = process.env['NODE_ENV'] === 'test';
 
     // Always use mock OCR in test environment
-    // Also use mock if AWS credentials are not properly configured
-    if (
-      isTestEnv ||
-      !accessKeyId ||
-      !secretAccessKey ||
-      accessKeyId === 'minioadmin' ||
-      secretAccessKey === 'minioadmin' ||
-      accessKeyId === 'your-access-key' ||
-      secretAccessKey === 'your-secret-key'
-    ) {
-      if (!isTestEnv) {
-        logger.warn(
-          '⚠️  AWS Textract credentials not configured. Using mock OCR for development. ' +
-            'Receipt processing will return simulated data.'
-        );
-      }
+    if (isTestEnv) {
       this.useMockOcr = true;
     } else {
+      // Use default credential chain (supports IAM roles for App Runner/ECS/Lambda)
+      // The SDK will automatically use: env vars, IAM roles, or config files
       this.textractClient = new TextractClient({
         region,
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
-        },
         // Adaptive retry with exponential backoff for handling throttling
         maxAttempts: 3,
         retryMode: 'adaptive',
