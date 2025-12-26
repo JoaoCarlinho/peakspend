@@ -37,6 +37,9 @@ COPY --from=builder /app/dist ./dist
 # Copy Prisma client (prisma-client-js generates JS directly to src/)
 COPY --from=builder /app/src/generated/prisma ./src/generated/prisma
 
+# Copy config files (required for security services)
+COPY --from=builder /app/config ./config
+
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
