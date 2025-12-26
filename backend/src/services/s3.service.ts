@@ -27,16 +27,17 @@ export class S3Service {
 
     const s3Config: S3ClientConfig = {
       region,
-      credentials: {
-        accessKeyId: process.env['AWS_ACCESS_KEY_ID'] || '',
-        secretAccessKey: process.env['AWS_SECRET_ACCESS_KEY'] || '',
-      },
     };
 
-    // MinIO/LocalStack support: use custom endpoint with path-style URLs
+    // MinIO/LocalStack support: use custom endpoint with path-style URLs and explicit credentials
     if (endpoint) {
       s3Config.endpoint = endpoint;
       s3Config.forcePathStyle = forcePathStyle;
+      // Use explicit credentials for MinIO/LocalStack
+      s3Config.credentials = {
+        accessKeyId: process.env['AWS_ACCESS_KEY_ID'] || 'minioadmin',
+        secretAccessKey: process.env['AWS_SECRET_ACCESS_KEY'] || 'minioadmin',
+      };
       logger.info(`📦 S3Service: Using custom endpoint ${endpoint} (MinIO/LocalStack mode)`);
 
       // If no public endpoint specified, auto-convert minio:9000 to localhost:9000
@@ -45,6 +46,8 @@ export class S3Service {
         logger.info(`📦 S3Service: Public endpoint auto-configured as ${this.publicEndpoint}`);
       }
     }
+    // For AWS (no custom endpoint), use default credential chain (IAM roles for App Runner/ECS)
+    // The SDK will automatically use: env vars, IAM roles, or config files
 
     this.s3Client = new S3Client(s3Config);
   }

@@ -50,24 +50,13 @@ export class BedrockService {
     this.isEnabled = llmProvider === 'bedrock';
 
     if (this.isEnabled) {
-      const accessKeyId = process.env['AWS_ACCESS_KEY_ID'] || '';
-      const secretAccessKey = process.env['AWS_SECRET_ACCESS_KEY'] || '';
-
-      // Only initialize if we have valid AWS credentials
-      if (accessKeyId && secretAccessKey && accessKeyId !== 'minioadmin') {
-        this.client = new BedrockRuntimeClient({
-          region,
-          credentials: {
-            accessKeyId,
-            secretAccessKey,
-          },
-          maxAttempts: 3,
-        });
-        logger.info('🤖 AWS Bedrock service initialized for LLM enhancement');
-      } else {
-        logger.warn('⚠️ Bedrock enabled but AWS credentials not configured');
-        this.isEnabled = false;
-      }
+      // Use default credential chain (supports IAM roles for App Runner/ECS/Lambda)
+      // The SDK will automatically use: env vars, IAM roles, or config files
+      this.client = new BedrockRuntimeClient({
+        region,
+        maxAttempts: 3,
+      });
+      logger.info('🤖 AWS Bedrock service initialized for LLM enhancement');
     }
   }
 
