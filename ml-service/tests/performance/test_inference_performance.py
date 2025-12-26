@@ -8,8 +8,9 @@ Tests latency requirements from PRD:
 """
 
 import time
-from statistics import median, quantiles
+from statistics import median
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
@@ -45,8 +46,8 @@ class TestInferencePerformance:
 
         # Calculate percentiles
         p50 = median(latencies)
-        p95 = quantiles(latencies, 0.95)
-        p99 = quantiles(latencies, 0.99)
+        p95 = float(np.percentile(latencies, 95))
+        p99 = float(np.percentile(latencies, 99))
         avg = sum(latencies) / len(latencies)
 
         print(f'\nInference Latency Metrics:')
@@ -113,7 +114,7 @@ class TestInferencePerformance:
             latency_ms = (end - start) * 1000
             latencies.append(latency_ms)
 
-        p95 = quantiles(latencies, 0.95)
+        p95 = float(np.percentile(latencies, 95))
         avg = sum(latencies) / len(latencies)
 
         print(f'\nFeedback Submission Latency:')
@@ -137,7 +138,7 @@ class TestInferencePerformance:
             latency_ms = (end - start) * 1000
             latencies.append(latency_ms)
 
-        p95 = quantiles(latencies, 0.95)
+        p95 = float(np.percentile(latencies, 95))
         avg = sum(latencies) / len(latencies)
 
         print(f'\nDashboard Load Time:')
@@ -221,7 +222,7 @@ class TestLoadTesting:
 
         total_time = time.time() - start_time
         actual_rps = total_requests / total_time
-        p95 = quantiles(latencies, 0.95)
+        p95 = float(np.percentile(latencies, 95))
 
         print(f'\nLoad Test Results:')
         print(f'  Total requests: {total_requests}')

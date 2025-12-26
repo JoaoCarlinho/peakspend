@@ -37,7 +37,7 @@ class RetrainingStatusResponse(BaseModel):
 
     user_id: str
     should_retrain: bool
-    reasons: list
+    retrain_reasons: list  # Matches service's get_retraining_schedule() output
     last_training_date: str | None
     next_scheduled_date: str | None
     days_since_training: int | None
