@@ -107,7 +107,7 @@ class TestConfidenceScorer:
             'hour': [12],
             'day_of_week': [3],
         })
-        quality1 = self.scorer._assess_feature_quality(features_complete)
+        quality1 = self.scorer.assess_feature_quality(features_complete)
         assert quality1 > 0.8
 
         # Incomplete features (many NaN)
@@ -116,14 +116,14 @@ class TestConfidenceScorer:
             'merchant_len': [np.nan],
             'hour': [np.nan],
         })
-        quality2 = self.scorer._assess_feature_quality(features_incomplete)
+        quality2 = self.scorer.assess_feature_quality(features_incomplete)
         assert quality2 < quality1
 
     def test_confidence_explanation(self):
         """Test confidence explanation generation."""
         result = self.scorer._generate_explanation(
-            confidence=0.85,
-            model_probability=0.9,
+            final_confidence=0.85,
+            model_prob=0.9,
             feature_quality=0.95,
             category='Food & Dining',
         )
