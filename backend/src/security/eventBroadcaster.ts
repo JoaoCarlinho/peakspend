@@ -32,7 +32,7 @@ interface SSEClient {
   filters?: {
     eventTypes?: string[];
     severities?: string[];
-  };
+  } | undefined;
   connectedAt: Date;
 }
 

@@ -91,7 +91,7 @@ export class SecurityConfigService {
         userId: null, // System event
         details: {
           mode: this.config.mode,
-          flags: this.config.flags,
+          flags: { ...this.config.flags } as Record<string, boolean>,
           initializedAt: this.modeInitializedAt.toISOString(),
         },
       },

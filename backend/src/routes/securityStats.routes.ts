@@ -230,7 +230,8 @@ router.get('/heatmap', async (req: Request, res: Response) => {
       const date = new Date(event.timestamp);
       const dayIndex = date.getDay(); // 0 = Sunday
       const hourIndex = date.getHours();
-      heatmap[dayIndex][hourIndex]++;
+      // Array is pre-initialized so indices are guaranteed valid
+      heatmap[dayIndex]![hourIndex]!++;
     }
 
     res.json({
