@@ -72,3 +72,4 @@ bmad/
 .claude/
 chat_support_docs/
 exploitable_features/
+stream_llm_assistant_response/
