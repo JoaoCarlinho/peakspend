@@ -63,9 +63,11 @@ docs/
 
 # infrastructure
 infrastructure/
+!infrastructure/data_flow_diagram.xml
 
 # scripts
 scripts/
+!scripts/deploy/
 
 # agile process files
 bmad/
