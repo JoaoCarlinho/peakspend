@@ -34,7 +34,13 @@ export type ChatMode = 'assistant' | 'coach';
  */
 export async function createSession(): Promise<ChatSession> {
   const response = await apiClient.post<{ sessionId: string; message: string }>('/api/chat/sessions');
-  return { id: response.data.sessionId };
+  const now = new Date().toISOString();
+  return {
+    id: response.data.sessionId,
+    startedAt: now,
+    lastMessageAt: now,
+    messageCount: 0,
+  };
 }
 
 /**
