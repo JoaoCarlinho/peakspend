@@ -12,6 +12,7 @@ export interface OcrResult {
   date?: string;
   amount?: number;
   lineItems?: Array<{ description: string; amount?: number }>;
+  notes?: string;
   confidence: {
     merchant?: number;
     date?: number;

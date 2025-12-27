@@ -135,6 +135,9 @@ export function ExpenseForm({ expense, onSubmit, onCancel, isSubmitting = false 
         const formattedDate = dateObj.toISOString().split('T')[0];
         setValue('date', formattedDate, { shouldValidate: true });
       }
+      if (ocrData.notes) {
+        setValue('notes', ocrData.notes, { shouldValidate: true });
+      }
     } catch (error) {
       setUploadError(
         error instanceof Error ? error.message : 'Failed to process receipt'

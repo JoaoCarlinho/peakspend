@@ -22,6 +22,7 @@ export interface StructuredReceipt {
     quantity?: number;
     price?: number;
   }>;
+  notes?: string;
   category_hint?: string;
   confidence: number;
   raw_text?: string;
@@ -86,6 +87,7 @@ Return a JSON object with:
 - amount: number (total amount paid)
 - date: string (ISO format YYYY-MM-DD, infer if not explicit)
 - items: array of {name, quantity, price} if itemized
+- notes: string (formatted itemized list of purchases for reference, e.g. "Items purchased:\\n- Organic Bananas x2 $3.99\\n- Almond Milk $4.50". Include item names, quantities, and prices if available. Return null if no items found)
 - category_hint: string (suggest ONE category: Groceries, Dining, Transportation, Shopping, Entertainment, or Other)
 - confidence: number (0.0-1.0, how confident you are in the extraction)
 
@@ -98,6 +100,7 @@ Be precise. If a field is unclear, use null. Return ONLY valid JSON, no markdown
         amount?: string | number;
         date?: string;
         items?: Array<{ name: string; quantity?: number; price?: number }>;
+        notes?: string;
         category_hint?: string;
         confidence?: number;
       };
@@ -111,6 +114,9 @@ Be precise. If a field is unclear, use null. Return ONLY valid JSON, no markdown
         confidence: parsed.confidence || 0.85,
         raw_text: rawOcrText,
       };
+      if (parsed.notes) {
+        result.notes = parsed.notes;
+      }
       if (parsed.category_hint) {
         result.category_hint = parsed.category_hint;
       }
