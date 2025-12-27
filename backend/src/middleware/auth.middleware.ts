@@ -1,4 +1,3 @@
-import '../types/express.d.ts';
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt.utils';
 import { getPrismaClient } from '../config/database';
