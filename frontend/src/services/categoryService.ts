@@ -3,8 +3,8 @@ import type { Category, CreateCategoryInput, UpdateCategoryInput } from '../type
 
 export const categoryService = {
   async getAll(): Promise<Category[]> {
-    const response = await apiClient.get('/api/categories');
-    return response.data;
+    const response = await apiClient.get<{ categories: Category[] }>('/api/categories');
+    return response.data.categories;
   },
 
   async create(data: CreateCategoryInput): Promise<Category> {
