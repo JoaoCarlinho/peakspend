@@ -195,13 +195,48 @@ jobs:
             --region us-east-1
 
       - name: Wait for deployments to complete
+        timeout-minutes: 20
         run: |
           echo "Waiting for ML service ECS deployment..."
-          aws ecs wait services-stable \
-            --cluster peakspend-production \
-            --services ml-service \
-            --region us-east-1
-          echo "ML service deployment completed!"
+
+          # Custom wait with 15-minute timeout (90 attempts * 10 seconds)
+          for i in {1..90}; do
+            RUNNING=$(aws ecs describe-services \
+              --cluster peakspend-production \
+              --services ml-service \
+              --query 'services[0].runningCount' \
+              --output text \
+              --region us-east-1)
+
+            DESIRED=$(aws ecs describe-services \
+              --cluster peakspend-production \
+              --services ml-service \
+              --query 'services[0].desiredCount' \
+              --output text \
+              --region us-east-1)
+
+            DEPLOYMENTS=$(aws ecs describe-services \
+              --cluster peakspend-production \
+              --services ml-service \
+              --query 'length(services[0].deployments)' \
+              --output text \
+              --region us-east-1)
+
+            echo "ML service: $RUNNING/$DESIRED running, $DEPLOYMENTS deployment(s) (attempt $i/90)"
+
+            # Service is stable when running == desired and only 1 deployment
+            if [ "$RUNNING" == "$DESIRED" ] && [ "$DEPLOYMENTS" == "1" ] && [ "$RUNNING" -ge "1" ]; then
+              echo "ML service deployment completed successfully!"
+              break
+            fi
+
+            if [ $i -eq 90 ]; then
+              echo "::error::ML service deployment timed out after 15 minutes"
+              exit 1
+            fi
+
+            sleep 10
+          done
 
           # App Runner deployments are async - check status
           echo "Checking App Runner backend deployment status..."
