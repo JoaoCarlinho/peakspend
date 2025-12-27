@@ -32,6 +32,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, timesta
 
   return (
     <Box
+      data-testid={`chat-message-${role}`}
       sx={{
         display: 'flex',
         justifyContent: isUser ? 'flex-end' : 'flex-start',

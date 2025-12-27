@@ -20,6 +20,7 @@ const bounce = keyframes`
 export const TypingIndicator: React.FC = () => {
   return (
     <Box
+      data-testid="typing-indicator"
       sx={{
         display: 'flex',
         justifyContent: 'flex-start',

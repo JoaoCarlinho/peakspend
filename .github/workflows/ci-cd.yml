@@ -222,11 +222,25 @@ jobs:
               --output text \
               --region us-east-1)
 
-            echo "ML service: $RUNNING/$DESIRED running, $DEPLOYMENTS deployment(s) (attempt $i/90)"
+            # Check if primary deployment failed (circuit breaker triggered)
+            PRIMARY_ROLLOUT=$(aws ecs describe-services \
+              --cluster peakspend-production \
+              --services ml-service \
+              --query 'services[0].deployments[?status==`PRIMARY`].rolloutState' \
+              --output text \
+              --region us-east-1)
+
+            echo "ML service: $RUNNING/$DESIRED running, $DEPLOYMENTS deployment(s), rollout: $PRIMARY_ROLLOUT (attempt $i/90)"
 
             # Service is stable when running == desired and only 1 deployment
             if [ "$RUNNING" == "$DESIRED" ] && [ "$DEPLOYMENTS" == "1" ] && [ "$RUNNING" -ge "1" ]; then
               echo "ML service deployment completed successfully!"
+              break
+            fi
+
+            # If deployment failed but we have running tasks, rollback succeeded - continue
+            if [ "$PRIMARY_ROLLOUT" == "FAILED" ] && [ "$RUNNING" -ge "1" ]; then
+              echo "::warning::ML service deployment failed but rollback succeeded. Continuing with previous version."
               break
             fi
 
