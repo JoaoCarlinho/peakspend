@@ -355,6 +355,65 @@ export class AlertConfigService extends EventEmitter {
     const envOverrides = this.getEnvOverrides();
     const mergedConfig = this.deepMerge(fileConfig, envOverrides);
 
+    // Filter out destinations with missing environment variables before validation
+    // This allows the service to start even if alert destinations aren't fully configured
+    if (Array.isArray(mergedConfig['destinations'])) {
+      const validDestinations = (mergedConfig['destinations'] as Record<string, unknown>[]).filter(
+        (dest) => {
+          if (!dest || typeof dest !== 'object') return false;
+
+          const config = dest['config'] as Record<string, unknown> | undefined;
+          if (!config) return false;
+
+          // Check webhook destinations
+          if (dest['type'] === 'webhook') {
+            const url = config['url'];
+            if (!url || url === '' || typeof url !== 'string') {
+              logger.info('Skipping webhook destination with missing URL', {
+                event: 'ALERT_DESTINATION_SKIPPED',
+                name: dest['name'],
+                reason: 'missing_url',
+              });
+              return false;
+            }
+          }
+
+          // Check email destinations
+          if (dest['type'] === 'email') {
+            const recipients = config['recipients'] as unknown[] | undefined;
+            const hasValidRecipients =
+              Array.isArray(recipients) &&
+              recipients.length > 0 &&
+              recipients.every((r) => typeof r === 'string' && r !== '' && r.includes('@'));
+
+            if (!hasValidRecipients) {
+              logger.info('Skipping email destination with missing/invalid recipients', {
+                event: 'ALERT_DESTINATION_SKIPPED',
+                name: dest['name'],
+                reason: 'missing_recipients',
+              });
+              return false;
+            }
+
+            // Also check SMTP config
+            const smtpHost = config['smtpHost'];
+            if (!smtpHost || smtpHost === '') {
+              logger.info('Skipping email destination with missing SMTP config', {
+                event: 'ALERT_DESTINATION_SKIPPED',
+                name: dest['name'],
+                reason: 'missing_smtp',
+              });
+              return false;
+            }
+          }
+
+          return true;
+        }
+      );
+
+      mergedConfig['destinations'] = validDestinations;
+    }
+
     // Validate with Zod
     const result = AlertConfigSchema.safeParse(mergedConfig);
 
