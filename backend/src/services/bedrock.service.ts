@@ -1,6 +1,7 @@
 import {
   BedrockRuntimeClient,
   InvokeModelCommand,
+  InvokeModelWithResponseStreamCommand,
 } from '@aws-sdk/client-bedrock-runtime';
 import logger from '../config/logger';
 
@@ -276,6 +277,99 @@ Return ONLY valid JSON array, no markdown or explanation.`;
     }
 
     throw new Error('Unexpected Bedrock response format');
+  }
+
+  /**
+   * USE CASE 4: Streaming Chat with Financial Assistant
+   * Streams tokens as they are generated for real-time UI updates
+   */
+  async *chatStream(messages: BedrockMessage[]): AsyncGenerator<string, void, unknown> {
+    if (!this.client) {
+      throw new Error('Bedrock client not initialized');
+    }
+
+    const startTime = Date.now();
+    logger.info('Starting Bedrock streaming chat request', {
+      event: 'BEDROCK_CHAT_STREAM_START',
+      messageCount: messages.length,
+      modelId: this.modelId,
+    });
+
+    // Separate system message from conversation messages
+    const systemMessage = messages.find(m => m.role === 'system');
+    const conversationMessages = messages.filter(m => m.role !== 'system');
+
+    // Format for Claude models on Bedrock
+    const requestBody: {
+      anthropic_version: string;
+      max_tokens: number;
+      system?: string;
+      messages: Array<{ role: string; content: string }>;
+    } = {
+      anthropic_version: 'bedrock-2023-05-31',
+      max_tokens: 4096,
+      messages: conversationMessages.map(m => ({
+        role: m.role,
+        content: m.content,
+      })),
+    };
+
+    // Add system message if present
+    if (systemMessage) {
+      requestBody.system = systemMessage.content;
+    }
+
+    const command = new InvokeModelWithResponseStreamCommand({
+      modelId: this.modelId,
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify(requestBody),
+    });
+
+    try {
+      const response = await this.client.send(command);
+
+      if (!response.body) {
+        throw new Error('No response body received from Bedrock stream');
+      }
+
+      let tokenCount = 0;
+
+      // Process the streaming response
+      for await (const event of response.body) {
+        if (event.chunk?.bytes) {
+          const chunkData = JSON.parse(new TextDecoder().decode(event.chunk.bytes));
+
+          // Handle different event types from Claude streaming response
+          if (chunkData.type === 'content_block_delta' && chunkData.delta?.type === 'text_delta') {
+            const text = chunkData.delta.text;
+            if (text) {
+              tokenCount++;
+              yield text;
+            }
+          } else if (chunkData.type === 'message_stop') {
+            // Stream complete
+            const durationMs = Date.now() - startTime;
+            logger.info('Bedrock streaming chat completed', {
+              event: 'BEDROCK_CHAT_STREAM_COMPLETE',
+              durationMs,
+              tokenCount,
+              modelId: this.modelId,
+            });
+          }
+          // Ignore other event types: message_start, content_block_start, content_block_stop, message_delta
+        }
+      }
+    } catch (error) {
+      const durationMs = Date.now() - startTime;
+      logger.error('Bedrock streaming chat failed', {
+        event: 'BEDROCK_CHAT_STREAM_ERROR',
+        durationMs,
+        modelId: this.modelId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   /**

@@ -1,0 +1,676 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  PeakSpend AWS Infrastructure Data Flow Architecture
+  ====================================================
+  This document describes the AWS services, their relationships, and data flows
+  for the PeakSpend production environment.
+
+  Last Updated: 2025-12-27
+  Region: us-east-1
+  Account: 971422717446
+  Environment: production
+
+  USAGE:
+  - Reference this document when troubleshooting connectivity issues
+  - Update when new resources are added or modified
+  - Use security group IDs to verify network access rules
+-->
+
+<architecture version="1.0" environment="production" region="us-east-1" account="971422717446">
+
+  <!-- =========================================================================
+       NETWORK LAYER
+       ========================================================================= -->
+  <network>
+    <vpc id="vpc-0690dc5948fe68e33" cidr="10.1.0.0/16" name="peakspend-production">
+
+      <subnets type="public">
+        <subnet id="subnet-055c0fff0e7ad0f67" az="us-east-1a" cidr="10.1.1.0/24"/>
+        <subnet id="subnet-0d09935dc55e4bcda" az="us-east-1b" cidr="10.1.2.0/24"/>
+        <subnet id="subnet-05385e3bd323eccdb" az="us-east-1c" cidr="10.1.3.0/24"/>
+      </subnets>
+
+      <subnets type="private">
+        <subnet id="subnet-039dc98080c0370c9" az="us-east-1a" cidr="10.1.10.0/24"/>
+        <subnet id="subnet-09a48c95a78a5724e" az="us-east-1b" cidr="10.1.11.0/24"/>
+        <subnet id="subnet-066d9b5532338c114" az="us-east-1c" cidr="10.1.12.0/24"/>
+      </subnets>
+
+      <nat_gateway id="nat-0c9873dee710fc10e"/>
+      <internet_gateway id="igw-0b0624b2e9e91fb4c"/>
+
+      <vpc_endpoints>
+        <endpoint id="vpce-0dbd46c5267ef22c3" service="ecr.api"/>
+        <endpoint id="vpce-0a5517ddf18f94401" service="ecr.dkr"/>
+        <endpoint id="vpce-01bbdfc532a0dd59e" service="s3" type="gateway"/>
+      </vpc_endpoints>
+
+    </vpc>
+
+    <security_groups>
+      <!-- App Security Group - ECS/General Application Access -->
+      <security_group id="sg-0d8654f047361a6ec" name="peakspend-production-app" purpose="ECS tasks and general application">
+        <inbound>
+          <rule from_port="*" to_port="*" protocol="tcp" source="sg-09d38628c1de8e7bb" description="From ALB"/>
+        </inbound>
+        <outbound>
+          <rule from_port="0" to_port="0" protocol="-1" destination="0.0.0.0/0"/>
+        </outbound>
+      </security_group>
+
+      <!-- ALB Security Group -->
+      <security_group id="sg-09d38628c1de8e7bb" name="peakspend-production-alb" purpose="Application Load Balancers">
+        <inbound>
+          <rule from_port="80" to_port="80" protocol="tcp" source="0.0.0.0/0"/>
+          <rule from_port="443" to_port="443" protocol="tcp" source="0.0.0.0/0"/>
+        </inbound>
+      </security_group>
+
+      <!-- App Runner VPC Connector Security Group -->
+      <security_group id="sg-0ed49e63a44701315" name="peakspend-production-backend" purpose="App Runner VPC Connector">
+        <notes>
+          CRITICAL: This security group MUST be allowed in RDS and Redis security groups.
+          The terraform modules use ignore_changes = [ingress] to prevent removal.
+        </notes>
+        <outbound>
+          <rule from_port="0" to_port="0" protocol="-1" destination="0.0.0.0/0"/>
+        </outbound>
+      </security_group>
+
+      <!-- RDS Security Group -->
+      <security_group id="sg-0168ca694e7c92a1e" name="peakspend-production-rds" purpose="RDS PostgreSQL">
+        <inbound>
+          <rule from_port="5432" to_port="5432" protocol="tcp" source="sg-0d8654f047361a6ec" description="From App SG"/>
+          <rule from_port="5432" to_port="5432" protocol="tcp" source="sg-0ed49e63a44701315" description="From App Runner"/>
+        </inbound>
+        <troubleshooting>
+          If App Runner cannot connect to RDS:
+          1. Verify sg-0ed49e63a44701315 is in the inbound rules
+          2. Check VPC connector uses correct subnets
+          3. Verify terraform has ignore_changes = [ingress] on security group
+        </troubleshooting>
+      </security_group>
+
+      <!-- Redis Security Group -->
+      <security_group id="sg-0743ea805d3c02de7" name="peakspend-production-redis" purpose="ElastiCache Redis">
+        <inbound>
+          <rule from_port="6379" to_port="6379" protocol="tcp" source="sg-0d8654f047361a6ec" description="From App SG"/>
+          <rule from_port="6379" to_port="6379" protocol="tcp" source="sg-0ed49e63a44701315" description="From App Runner"/>
+        </inbound>
+        <troubleshooting>
+          If App Runner cannot connect to Redis:
+          1. Verify sg-0ed49e63a44701315 is in the inbound rules
+          2. Ensure Redis has transit encryption enabled (uses rediss://)
+          3. Check VPC connector uses correct private subnets
+        </troubleshooting>
+      </security_group>
+
+    </security_groups>
+  </network>
+
+  <!-- =========================================================================
+       COMPUTE SERVICES
+       ========================================================================= -->
+  <compute>
+
+    <!-- App Runner Backend Service -->
+    <service type="apprunner" name="peakspend-production-backend">
+      <arn>arn:aws:apprunner:us-east-1:971422717446:service/peakspend-production-backend/9c8bf5a4be7641019d3766787565f78c</arn>
+      <url>https://rczwkm4t9i.us-east-1.awsapprunner.com</url>
+      <ecr_repository>971422717446.dkr.ecr.us-east-1.amazonaws.com/peakspend-production-backend</ecr_repository>
+
+      <configuration>
+        <cpu>256</cpu>
+        <memory>512</memory>
+        <min_instances>1</min_instances>
+        <max_instances>5</max_instances>
+        <max_concurrency>100</max_concurrency>
+        <health_check path="/health" port="3000" protocol="HTTP"/>
+      </configuration>
+
+      <vpc_connector>
+        <arn>arn:aws:apprunner:us-east-1:971422717446:vpcconnector/peakspend-production-backend/1/567aab34dba049a4b77b52f4f111ede2</arn>
+        <security_group>sg-0ed49e63a44701315</security_group>
+        <subnets>
+          <subnet>subnet-039dc98080c0370c9</subnet>
+          <subnet>subnet-066d9b5532338c114</subnet>
+          <subnet>subnet-09a48c95a78a5724e</subnet>
+        </subnets>
+      </vpc_connector>
+
+      <iam_role name="AppRunnerInstanceRole">
+        <arn>arn:aws:iam::971422717446:role/AppRunnerInstanceRole</arn>
+        <policies>
+          <policy name="peakspend-s3-access" description="Access to receipts S3 bucket"/>
+          <policy name="peakspend-textract-access" description="OCR via AWS Textract"/>
+          <policy name="peakspend-secrets-access" description="JWT and encryption secrets"/>
+          <policy name="peakspend-cloudwatch-logs" description="Logging to CloudWatch"/>
+          <policy name="peakspend-cloudwatch-metrics" description="Custom metrics"/>
+          <policy name="peakspend-bedrock-access" description="LLM via AWS Bedrock"/>
+        </policies>
+      </iam_role>
+
+      <environment_variables>
+        <var name="NODE_ENV">production</var>
+        <var name="DATABASE_URL" source="secrets_manager"/>
+        <var name="REDIS_URL" value="rediss://{redis_endpoint}:6379"/>
+        <var name="SECURITY_MODE">secure</var>
+        <var name="LLM_PROVIDER">bedrock</var>
+        <var name="BEDROCK_MODEL_ID">anthropic.claude-3-haiku-20240307-v1:0</var>
+      </environment_variables>
+
+      <connections>
+        <connection to="rds" port="5432" protocol="postgres"/>
+        <connection to="redis" port="6379" protocol="rediss"/>
+        <connection to="s3-receipts" protocol="https"/>
+        <connection to="textract" protocol="https"/>
+        <connection to="bedrock" protocol="https"/>
+        <connection to="secrets_manager" protocol="https"/>
+      </connections>
+
+      <log_groups>
+        <log_group>/aws/apprunner/peakspend-production-backend/9c8bf5a4be7641019d3766787565f78c/service</log_group>
+        <log_group>/aws/apprunner/peakspend-production-backend/9c8bf5a4be7641019d3766787565f78c/application</log_group>
+      </log_groups>
+    </service>
+
+    <!-- ECS Cluster -->
+    <cluster type="ecs" name="peakspend-production">
+      <arn>arn:aws:ecs:us-east-1:971422717446:cluster/peakspend-production</arn>
+
+      <!-- ML Service -->
+      <service name="ml-service">
+        <task_definition>peakspend-production-ml-service</task_definition>
+        <cpu>1024</cpu>
+        <memory>2048</memory>
+        <desired_count>1</desired_count>
+        <ecr_repository>peakspend-production-ml-service</ecr_repository>
+
+        <load_balancer type="alb">
+          <arn>arn:aws:elasticloadbalancing:us-east-1:971422717446:loadbalancer/app/ml-20251127030612299000000017/04d0956490160d0c</arn>
+          <target_group>arn:aws:elasticloadbalancing:us-east-1:971422717446:targetgroup/ml-tg-20251127030606383300000011/5f2212d0fd02baad</target_group>
+        </load_balancer>
+
+        <autoscaling>
+          <min_capacity>1</min_capacity>
+          <max_capacity>5</max_capacity>
+          <cpu_target>70</cpu_target>
+          <memory_target>80</memory_target>
+        </autoscaling>
+
+        <connections>
+          <connection to="rds" port="5432"/>
+          <connection to="redis" port="6379"/>
+          <connection to="s3-mlflow"/>
+        </connections>
+      </service>
+
+      <!-- MLflow Tracking Server -->
+      <service name="mlflow">
+        <task_definition>peakspend-production-mlflow</task_definition>
+        <cpu>512</cpu>
+        <memory>1024</memory>
+        <ecr_repository>peakspend-production-mlflow</ecr_repository>
+        <public_access>false</public_access>
+
+        <load_balancer type="alb" internal="true">
+          <arn>arn:aws:elasticloadbalancing:us-east-1:971422717446:loadbalancer/app/mlf-20251127030612752200000019/21d3c207c7b06109</arn>
+        </load_balancer>
+
+        <connections>
+          <connection to="rds" port="5432" database="mlflow"/>
+          <connection to="s3-mlflow"/>
+        </connections>
+      </service>
+
+      <!-- Bull Queue Workers -->
+      <service name="workers">
+        <task_definition>peakspend-production-workers</task_definition>
+        <cpu>1024</cpu>
+        <memory>2048</memory>
+        <desired_count>3</desired_count>
+        <ecr_repository>peakspend-production-workers</ecr_repository>
+
+        <autoscaling>
+          <min_capacity>1</min_capacity>
+          <max_capacity>10</max_capacity>
+          <cpu_target>70</cpu_target>
+        </autoscaling>
+
+        <connections>
+          <connection to="rds" port="5432"/>
+          <connection to="redis" port="6379" description="Bull Queue"/>
+          <connection to="s3-receipts"/>
+        </connections>
+
+        <queues>
+          <queue name="receipt-processing"/>
+          <queue name="ml-inference"/>
+          <queue name="notifications"/>
+        </queues>
+      </service>
+
+      <iam_roles>
+        <role name="peakspend-production-ecs-task" type="task">
+          <arn>arn:aws:iam::971422717446:role/peakspend-production-ecs-task-20251130034936930800000001</arn>
+          <policies>
+            <policy name="s3-access"/>
+            <policy name="textract-access"/>
+            <policy name="bedrock-access"/>
+            <policy name="secrets-access"/>
+            <policy name="kms-access"/>
+            <policy name="cloudwatch-logs"/>
+            <policy name="cloudwatch-metrics"/>
+            <policy name="audit-logging"/>
+          </policies>
+        </role>
+        <role name="peakspend-production-ecs-execution" type="execution">
+          <arn>arn:aws:iam::971422717446:role/peakspend-production-ecs-execution-20251130034936930900000002</arn>
+        </role>
+      </iam_roles>
+
+    </cluster>
+
+  </compute>
+
+  <!-- =========================================================================
+       DATA STORES
+       ========================================================================= -->
+  <data_stores>
+
+    <!-- RDS PostgreSQL -->
+    <database type="rds-postgresql" name="peakspend-production">
+      <instance_id>peakspend-production-20251127042207080300000003</instance_id>
+      <endpoint>peakspend-production-20251127042207080300000003.crws0amqe1e3.us-east-1.rds.amazonaws.com</endpoint>
+      <port>5432</port>
+      <database_name>peakspend</database_name>
+
+      <configuration>
+        <engine>postgres</engine>
+        <engine_version>17.6</engine_version>
+        <instance_class>db.t3.micro</instance_class>
+        <storage>100 GB</storage>
+        <storage_type>gp3</storage_type>
+        <multi_az>false</multi_az>
+        <encrypted>true</encrypted>
+        <backup_retention>7 days</backup_retention>
+      </configuration>
+
+      <security_group>sg-0168ca694e7c92a1e</security_group>
+      <subnet_group>peakspend-production-20251127030612645700000018</subnet_group>
+
+      <credentials>
+        <secret_arn>arn:aws:secretsmanager:us-east-1:971422717446:secret:peakspend-production-db-password-20251127030548080400000004-2PmS70</secret_arn>
+        <username>peakspend_admin</username>
+      </credentials>
+
+      <monitoring>
+        <enhanced_monitoring>true</enhanced_monitoring>
+        <performance_insights>true</performance_insights>
+        <cloudwatch_logs>postgresql, upgrade</cloudwatch_logs>
+      </monitoring>
+
+      <consumers>
+        <consumer>App Runner Backend</consumer>
+        <consumer>ECS ML Service</consumer>
+        <consumer>ECS MLflow</consumer>
+        <consumer>ECS Workers</consumer>
+      </consumers>
+    </database>
+
+    <!-- ElastiCache Redis -->
+    <cache type="elasticache-redis" name="peakspend-production">
+      <cluster_id>peakspend-production</cluster_id>
+      <endpoint>peakspend-production.gypvgu.ng.0001.use1.cache.amazonaws.com</endpoint>
+      <port>6379</port>
+
+      <configuration>
+        <engine>redis</engine>
+        <engine_version>7.1</engine_version>
+        <node_type>cache.t3.small</node_type>
+        <num_nodes>2</num_nodes>
+        <automatic_failover>true</automatic_failover>
+        <multi_az>true</multi_az>
+        <transit_encryption>true</transit_encryption>
+        <at_rest_encryption>true</at_rest_encryption>
+      </configuration>
+
+      <security_group>sg-0743ea805d3c02de7</security_group>
+      <subnet_group>peakspend-production-redis-subnet</subnet_group>
+
+      <usage>
+        <purpose>Session storage</purpose>
+        <purpose>Bull Queue job management</purpose>
+        <purpose>Rate limiting</purpose>
+        <purpose>Caching</purpose>
+      </usage>
+
+      <consumers>
+        <consumer>App Runner Backend</consumer>
+        <consumer>ECS Workers</consumer>
+      </consumers>
+    </cache>
+
+  </data_stores>
+
+  <!-- =========================================================================
+       STORAGE
+       ========================================================================= -->
+  <storage>
+
+    <bucket name="peakspend-receipts-production-971422717446" purpose="Receipt Images">
+      <encryption>AES256</encryption>
+      <versioning>enabled</versioning>
+      <cors>enabled for frontend</cors>
+      <lifecycle>
+        <rule>Transition to IA after 90 days</rule>
+        <rule>Transition to Glacier after 365 days</rule>
+      </lifecycle>
+      <access>
+        <iam_role>AppRunnerInstanceRole</iam_role>
+        <iam_role>peakspend-production-ecs-task</iam_role>
+      </access>
+    </bucket>
+
+    <bucket name="peakspend-mlflow-production-971422717446" purpose="MLflow Artifacts">
+      <encryption>AES256</encryption>
+      <versioning>enabled</versioning>
+      <access>
+        <iam_role>peakspend-production-ecs-task</iam_role>
+      </access>
+    </bucket>
+
+    <bucket name="peakspend-frontend-production-971422717446" purpose="Frontend Static Assets">
+      <encryption>AES256</encryption>
+      <versioning>enabled</versioning>
+      <public_access>blocked</public_access>
+      <access>
+        <cloudfront_oac>E2XGDB7RT5DFW5</cloudfront_oac>
+      </access>
+    </bucket>
+
+    <bucket name="peakspend-audit-production-971422717446" purpose="Audit Log Archives">
+      <encryption>AES256</encryption>
+      <versioning>enabled</versioning>
+      <retention>2555 days (~7 years)</retention>
+      <access>
+        <iam_role>peakspend-production-ecs-task</iam_role>
+      </access>
+    </bucket>
+
+    <bucket name="peakspend-terraform-state-971422717446" purpose="Terraform State">
+      <encryption>AES256</encryption>
+      <versioning>enabled</versioning>
+      <dynamodb_lock_table>peakspend-terraform-locks</dynamodb_lock_table>
+    </bucket>
+
+  </storage>
+
+  <!-- =========================================================================
+       CDN / FRONTEND
+       ========================================================================= -->
+  <cdn>
+    <distribution type="cloudfront" name="peakspend-production-frontend">
+      <id>E1O89SL2CFI9W5</id>
+      <domain>d1234567890.cloudfront.net</domain>
+
+      <origins>
+        <origin type="s3" bucket="peakspend-frontend-production-971422717446">
+          <oac>E2XGDB7RT5DFW5</oac>
+        </origin>
+        <origin type="custom" path="/api/*" target="App Runner Backend"/>
+      </origins>
+
+      <configuration>
+        <price_class>PriceClass_100</price_class>
+        <ssl_protocol>TLSv1.2_2021</ssl_protocol>
+        <default_root_object>index.html</default_root_object>
+      </configuration>
+
+      <cache_behaviors>
+        <behavior path="/api/*" origin="backend" cache="disabled"/>
+        <behavior path="/*" origin="s3" cache="enabled"/>
+      </cache_behaviors>
+    </distribution>
+  </cdn>
+
+  <!-- =========================================================================
+       SECURITY
+       ========================================================================= -->
+  <security>
+
+    <kms>
+      <key alias="alias/peakspend-production" id="880922c9-84c5-4794-ad8f-485568bc9384">
+        <purpose>General encryption (secrets, sensitive data)</purpose>
+        <usage>
+          <service>Secrets Manager</service>
+          <service>S3 (optional)</service>
+          <service>Application PII encryption</service>
+        </usage>
+      </key>
+    </kms>
+
+    <secrets_manager>
+      <secret name="peakspend-production-jwt-secret">
+        <arn>arn:aws:secretsmanager:us-east-1:971422717446:secret:peakspend-production-jwt-secret-20251225084859021100000007-qvpEC7</arn>
+        <purpose>JWT token signing</purpose>
+      </secret>
+      <secret name="peakspend-production-encryption-key">
+        <arn>arn:aws:secretsmanager:us-east-1:971422717446:secret:peakspend-production-encryption-key-20251225084859019800000005-Xlh021</arn>
+        <purpose>PII field encryption</purpose>
+      </secret>
+      <secret name="peakspend-production-db-password">
+        <arn>arn:aws:secretsmanager:us-east-1:971422717446:secret:peakspend-production-db-password-20251127030548080400000004-2PmS70</arn>
+        <purpose>RDS master password</purpose>
+      </secret>
+    </secrets_manager>
+
+    <security_mode>secure</security_mode>
+    <feature_flags>
+      <flag name="INPUT_INSPECTION_ENABLED">true</flag>
+      <flag name="OUTPUT_INSPECTION_ENABLED">true</flag>
+      <flag name="AUDIT_LOGGING_ENABLED">true</flag>
+      <flag name="PROMPT_PROTECTION_ENABLED">true</flag>
+      <flag name="TENANT_ISOLATION_ENABLED">true</flag>
+      <flag name="ANOMALY_DETECTION_ENABLED">true</flag>
+      <flag name="TOOL_RBAC_ENABLED">true</flag>
+      <flag name="TIER2_INSPECTION_ENABLED">false</flag>
+    </feature_flags>
+
+  </security>
+
+  <!-- =========================================================================
+       MONITORING
+       ========================================================================= -->
+  <monitoring>
+
+    <cloudwatch>
+      <log_groups>
+        <log_group name="/peakspend/production/audit" retention="365 days" purpose="Security audit logs"/>
+        <log_group name="/peakspend/production/security" retention="90 days" purpose="Security events"/>
+        <log_group name="/ecs/peakspend-production" purpose="ECS cluster logs"/>
+        <log_group name="/ecs/peakspend-production-ml-service" purpose="ML Service logs"/>
+        <log_group name="/ecs/peakspend-production-mlflow" purpose="MLflow logs"/>
+        <log_group name="/ecs/peakspend-production-workers" purpose="Worker logs"/>
+      </log_groups>
+
+      <dashboards>
+        <dashboard name="peakspend-production" purpose="Main operations"/>
+        <dashboard name="peakspend-production-security" purpose="Security monitoring"/>
+      </dashboards>
+
+      <alarms>
+        <alarm name="peakspend-production-ecs-cpu-high" metric="CPUUtilization"/>
+        <alarm name="peakspend-production-rds-cpu-high" metric="CPUUtilization"/>
+        <alarm name="peakspend-production-rds-storage-low" metric="FreeStorageSpace"/>
+        <alarm name="peakspend-production-redis-cpu-high" metric="CPUUtilization"/>
+        <alarm name="peakspend-production-high-injection-rate" metric="InjectionAttempts"/>
+        <alarm name="peakspend-production-high-auth-failures" metric="AuthFailures"/>
+        <alarm name="peakspend-production-cross-tenant-attempts" metric="CrossTenantAttempts"/>
+        <alarm name="peakspend-production-security-escalations" metric="SecurityEscalations"/>
+      </alarms>
+    </cloudwatch>
+
+    <sns>
+      <topic name="peakspend-production-alerts">
+        <arn>arn:aws:sns:us-east-1:971422717446:peakspend-production-alerts-2025112703054853700000000b</arn>
+        <purpose>Alarm notifications</purpose>
+      </topic>
+    </sns>
+
+  </monitoring>
+
+  <!-- =========================================================================
+       DATA FLOWS
+       ========================================================================= -->
+  <data_flows>
+
+    <flow name="User Authentication">
+      <step order="1">User -> CloudFront -> S3 Frontend (login page)</step>
+      <step order="2">Frontend -> CloudFront /api -> App Runner Backend</step>
+      <step order="3">Backend -> RDS (validate credentials)</step>
+      <step order="4">Backend -> Secrets Manager (get JWT secret)</step>
+      <step order="5">Backend -> Redis (create session)</step>
+      <step order="6">Backend -> CloudWatch (audit log)</step>
+    </flow>
+
+    <flow name="Receipt OCR Processing">
+      <step order="1">User uploads image -> App Runner Backend</step>
+      <step order="2">Backend -> S3 receipts bucket (store image)</step>
+      <step order="3">Backend -> Textract (AnalyzeExpense API)</step>
+      <step order="4">Backend -> Bedrock (enhance/categorize)</step>
+      <step order="5">Backend -> RDS (save transaction)</step>
+      <step order="6">Backend -> CloudWatch (audit log)</step>
+    </flow>
+
+    <flow name="Background Job Processing">
+      <step order="1">Backend -> Redis (enqueue job to Bull Queue)</step>
+      <step order="2">Workers (ECS) poll Redis for jobs</step>
+      <step order="3">Workers -> RDS (read/write data)</step>
+      <step order="4">Workers -> S3 (process files if needed)</step>
+      <step order="5">Workers -> Redis (update job status)</step>
+    </flow>
+
+    <flow name="ML Inference">
+      <step order="1">Backend -> ML Service ALB (HTTP request)</step>
+      <step order="2">ML Service -> RDS (fetch data)</step>
+      <step order="3">ML Service -> S3 MLflow (load model)</step>
+      <step order="4">ML Service returns prediction</step>
+    </flow>
+
+    <flow name="LLM Chat Streaming (SSE)">
+      <description>
+        Real-time streaming of LLM responses using Server-Sent Events (SSE).
+        Frontend receives tokens as they are generated by AWS Bedrock.
+      </description>
+      <step order="1">User sends message -> Frontend (ChatContainer)</step>
+      <step order="2">Frontend -> POST /api/chat/sessions/:sessionId/messages/stream</step>
+      <step order="3">Backend -> RDS (save user message, fetch chat history)</step>
+      <step order="4">Backend -> Bedrock (InvokeModelWithResponseStreamCommand)</step>
+      <step order="5">Bedrock streams tokens -> Backend accumulates response</step>
+      <step order="6">Backend -> SSE stream (data: {token: "..."}) -> Frontend</step>
+      <step order="7">Frontend appends tokens (typewriter effect with cursor)</step>
+      <step order="8">On stream complete: Backend -> Output inspection (guardrails)</step>
+      <step order="9">Backend -> RDS (save assistant message with wasRedacted flag)</step>
+      <step order="10">Backend -> SSE (data: {done: true, wasRedacted, messageId})</step>
+      <step order="11">Frontend removes cursor, displays complete message</step>
+      <protocol>
+        <header>Content-Type: text/event-stream</header>
+        <header>Cache-Control: no-cache</header>
+        <header>Connection: keep-alive</header>
+        <header>X-Accel-Buffering: no</header>
+      </protocol>
+      <error_handling>
+        On Bedrock error: Backend sends SSE error event, closes connection gracefully
+        On client disconnect: Backend detects via req.on('close'), cleans up resources
+      </error_handling>
+    </flow>
+
+  </data_flows>
+
+  <!-- =========================================================================
+       TROUBLESHOOTING GUIDE
+       ========================================================================= -->
+  <troubleshooting>
+
+    <issue name="App Runner cannot connect to RDS">
+      <symptoms>
+        <symptom>P1001: Can't reach database server</symptom>
+        <symptom>500 errors on login</symptom>
+      </symptoms>
+      <resolution>
+        <step>1. Check RDS security group (sg-0168ca694e7c92a1e) allows App Runner SG (sg-0ed49e63a44701315)</step>
+        <step>2. Run: aws ec2 authorize-security-group-ingress --group-id sg-0168ca694e7c92a1e --protocol tcp --port 5432 --source-group sg-0ed49e63a44701315</step>
+        <step>3. Verify terraform has ignore_changes = [ingress] on database security group</step>
+      </resolution>
+    </issue>
+
+    <issue name="App Runner cannot connect to Redis">
+      <symptoms>
+        <symptom>Redis connection refused</symptom>
+        <symptom>Session/cache errors</symptom>
+      </symptoms>
+      <resolution>
+        <step>1. Check Redis security group (sg-0743ea805d3c02de7) allows App Runner SG (sg-0ed49e63a44701315)</step>
+        <step>2. Ensure using rediss:// protocol (TLS enabled)</step>
+        <step>3. Run: aws ec2 authorize-security-group-ingress --group-id sg-0743ea805d3c02de7 --protocol tcp --port 6379 --source-group sg-0ed49e63a44701315</step>
+      </resolution>
+    </issue>
+
+    <issue name="OCR 500 Error">
+      <symptoms>
+        <symptom>500 on POST /api/receipts/ocr</symptom>
+        <symptom>AccessDeniedException for Textract</symptom>
+      </symptoms>
+      <resolution>
+        <step>1. Verify AppRunnerInstanceRole has textract permissions</step>
+        <step>2. Check terraform module.backend.aws_iam_role_policy.textract_access exists</step>
+        <step>3. Verify S3 bucket permissions for reading receipts</step>
+      </resolution>
+    </issue>
+
+    <issue name="Terraform removes security group rules">
+      <symptoms>
+        <symptom>After terraform apply, App Runner loses DB connectivity</symptom>
+        <symptom>Security group ingress rules disappear</symptom>
+      </symptoms>
+      <resolution>
+        <step>1. Add ignore_changes = [ingress] to security group lifecycle blocks</step>
+        <step>2. Check modules/database/main.tf and modules/cache/main.tf have the fix</step>
+        <step>3. The root module uses separate aws_security_group_rule resources</step>
+      </resolution>
+    </issue>
+
+  </troubleshooting>
+
+  <!-- =========================================================================
+       TERRAFORM RESOURCES REFERENCE
+       ========================================================================= -->
+  <terraform>
+    <state_bucket>peakspend-terraform-state-971422717446</state_bucket>
+    <state_key>terraform.tfstate</state_key>
+    <lock_table>peakspend-terraform-locks</lock_table>
+
+    <commands>
+      <command purpose="Plan production changes">
+        terraform plan -var-file="production.tfvars"
+      </command>
+      <command purpose="Apply production changes">
+        terraform apply -var-file="production.tfvars"
+      </command>
+      <command purpose="Check state">
+        terraform state list
+      </command>
+    </commands>
+
+    <important_files>
+      <file path="infrastructure/terraform/main.tf" description="Main terraform configuration"/>
+      <file path="infrastructure/terraform/production.tfvars" description="Production variables"/>
+      <file path="infrastructure/terraform/imports.tf" description="Import blocks for existing resources"/>
+      <file path="infrastructure/terraform/modules/database/main.tf" description="RDS configuration - has ignore_changes for ingress"/>
+      <file path="infrastructure/terraform/modules/cache/main.tf" description="Redis configuration - has ignore_changes for ingress"/>
+      <file path="infrastructure/terraform/modules/backend-apprunner/iam.tf" description="App Runner IAM policies"/>
+    </important_files>
+  </terraform>
+
+</architecture>

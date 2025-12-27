@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { chatService, ChatMode } from '../services/chat.service';
+import { chatService, ChatMode, processMessageStream } from '../services/chat.service';
 import logger from '../config/logger';
 
 /**
@@ -217,10 +217,168 @@ export async function quickMessage(
   }
 }
 
+/**
+ * Send a message and stream response via SSE
+ * POST /api/chat/sessions/:sessionId/messages/stream
+ *
+ * Body: { message: string, chatMode?: 'assistant' | 'coach' }
+ *
+ * Response: Server-Sent Events stream
+ * - data: {"token": "..."} for each token
+ * - data: {"done": true, "wasRedacted": false, "messageId": "..."} on completion
+ * - data: {"error": "...", "code": "STREAM_ERROR"} on error
+ */
+export async function sendMessageStream(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const userId = req.userId;
+
+  // Track if client is still connected
+  let isClientConnected = true;
+
+  // Handle client disconnect
+  req.on('close', () => {
+    isClientConnected = false;
+    logger.info('SSE client disconnected', {
+      event: 'CHAT_STREAM_CLIENT_DISCONNECT',
+      userId,
+    });
+  });
+
+  try {
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized', code: 'AUTH_REQUIRED' });
+      return;
+    }
+
+    const sessionId = req.params['sessionId'];
+    if (!sessionId) {
+      res.status(400).json({ error: 'Session ID is required', code: 'INVALID_SESSION_ID' });
+      return;
+    }
+
+    const { message, chatMode } = req.body as { message?: string; chatMode?: string };
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      res.status(400).json({ error: 'Message is required', code: 'INVALID_MESSAGE' });
+      return;
+    }
+
+    // Validate chat mode
+    const validModes: ChatMode[] = ['assistant', 'coach'];
+    const mode: ChatMode = validModes.includes(chatMode as ChatMode)
+      ? (chatMode as ChatMode)
+      : 'assistant';
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
+
+    // Flush headers immediately
+    res.flushHeaders();
+
+    logger.info('Starting SSE stream', {
+      event: 'CHAT_STREAM_START',
+      userId,
+      sessionId,
+    });
+
+    // Process message with streaming
+    const streamGenerator = processMessageStream(userId, sessionId, message.trim(), mode);
+
+    let result;
+    try {
+      // Stream tokens to client
+      while (true) {
+        const { value, done } = await streamGenerator.next();
+
+        if (done) {
+          // Generator returned final result
+          result = value;
+          break;
+        }
+
+        // Check if client is still connected before writing
+        if (!isClientConnected) {
+          logger.info('Stopping stream - client disconnected', {
+            event: 'CHAT_STREAM_ABORT',
+            userId,
+            sessionId,
+          });
+          return;
+        }
+
+        // Send token event
+        const tokenEvent = JSON.stringify({ token: value });
+        res.write(`data: ${tokenEvent}\n\n`);
+      }
+
+      // Send completion event with metadata
+      if (result && isClientConnected) {
+        const completionEvent = JSON.stringify({
+          done: true,
+          wasRedacted: result.wasRedacted,
+          messageId: result.messageId,
+        });
+        res.write(`data: ${completionEvent}\n\n`);
+      }
+
+      logger.info('SSE stream completed', {
+        event: 'CHAT_STREAM_COMPLETE',
+        userId,
+        sessionId,
+        wasRedacted: result?.wasRedacted,
+      });
+    } catch (streamError) {
+      // Send error event
+      if (isClientConnected) {
+        const errorEvent = JSON.stringify({
+          error: streamError instanceof Error ? streamError.message : 'Stream error occurred',
+          code: 'STREAM_ERROR',
+        });
+        res.write(`data: ${errorEvent}\n\n`);
+      }
+
+      logger.error('SSE stream error', {
+        event: 'CHAT_STREAM_ERROR',
+        userId,
+        sessionId,
+        error: streamError instanceof Error ? streamError.message : String(streamError),
+      });
+    }
+
+    // Close the connection
+    res.end();
+  } catch (error) {
+    // If headers not sent yet, send error response
+    if (!res.headersSent) {
+      logger.error('Failed to start chat stream', {
+        event: 'CHAT_STREAM_INIT_ERROR',
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      next(error);
+    } else {
+      // Headers already sent, just log and close
+      logger.error('Chat stream failed after headers sent', {
+        event: 'CHAT_STREAM_LATE_ERROR',
+        userId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      res.end();
+    }
+  }
+}
+
 export const chatController = {
   createSession,
   getSessions,
   getMessages,
   sendMessage,
+  sendMessageStream,
   quickMessage,
 };

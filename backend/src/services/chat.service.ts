@@ -504,6 +504,188 @@ export async function processMessage(
 }
 
 /**
+ * Streaming response metadata returned after streaming completes
+ */
+export interface StreamingResult {
+  wasRedacted: boolean;
+  messageId: string;
+  fullResponse: string;
+}
+
+/**
+ * Process a chat message with streaming response
+ * SECURE: Full security pipeline applied after streaming completes
+ *
+ * Yields tokens as they are received, then returns final metadata.
+ * Output inspection is applied to the complete response before saving.
+ */
+export async function* processMessageStream(
+  userId: string,
+  sessionId: string,
+  message: string,
+  chatMode: ChatMode = 'assistant'
+): AsyncGenerator<string, StreamingResult, unknown> {
+  const requestId = crypto.randomUUID();
+  const startTime = Date.now();
+
+  logger.info('Processing streaming chat message', {
+    event: 'CHAT_MESSAGE_STREAM_START',
+    userId,
+    sessionId,
+    requestId,
+    chatMode,
+  });
+
+  // Save user message before streaming starts
+  await prisma.chatMessage.create({
+    data: {
+      userId,
+      sessionId,
+      role: 'user',
+      content: message,
+    },
+  });
+
+  // Update session timestamp
+  await prisma.chatSession.update({
+    where: { id: sessionId },
+    data: { lastMessageAt: new Date() },
+  });
+
+  // Build context (reuse existing logic)
+  const systemPrompt = await getSystemPrompt(chatMode);
+  const expenseContext = await buildExpenseContext(userId, message);
+  const goalsContext = chatMode === 'coach' ? await buildGoalsContext(userId) : '';
+
+  // Get conversation history for context
+  const history = await getChatHistory(userId, sessionId, 10);
+  const conversationMessages = history.slice(-8).map((m) => ({
+    role: m.role as 'user' | 'assistant',
+    content: m.content,
+  }));
+
+  // Build messages array for LLM
+  const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+    { role: 'system', content: systemPrompt + expenseContext + goalsContext },
+    ...conversationMessages,
+    { role: 'user', content: message },
+  ];
+
+  // Accumulate full response for output inspection
+  let fullResponse = '';
+
+  try {
+    // Only Bedrock supports streaming currently
+    if (LLM_PROVIDER !== 'bedrock') {
+      throw new Error('Streaming is only supported with Bedrock provider');
+    }
+
+    // Stream tokens from Bedrock
+    for await (const token of bedrockService.chatStream(messages as BedrockMessage[])) {
+      fullResponse += token;
+      yield token;
+    }
+  } catch (error) {
+    logger.error('LLM streaming error', {
+      event: 'CHAT_LLM_STREAM_ERROR',
+      provider: LLM_PROVIDER,
+      userId,
+      sessionId,
+      requestId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+
+  // Output inspection on complete response
+  let finalResponse = fullResponse;
+  let wasRedacted = false;
+
+  if (securityConfigService.isFeatureEnabled('OUTPUT_INSPECTION_ENABLED')) {
+    const inspectionResult = await outputInspector.inspect(fullResponse, userId);
+
+    if (inspectionResult.decision === OutputDecision.BLOCK) {
+      await auditLogger.logSecurityEvent({
+        eventType: 'OUTPUT_BLOCKED',
+        severity: 'HIGH',
+        userId,
+        sessionId,
+        requestId,
+        details: {
+          reason: 'Cross-user data detected in LLM streaming response',
+          chatMode,
+        },
+      });
+
+      logger.warn('LLM streaming response blocked due to cross-user data', {
+        event: 'CHAT_STREAM_OUTPUT_BLOCKED',
+        userId,
+        sessionId,
+        requestId,
+      });
+
+      finalResponse = "I apologize, but I encountered an issue generating a response. Please try rephrasing your question.";
+      wasRedacted = true;
+    } else if (inspectionResult.decision === OutputDecision.REDACT) {
+      finalResponse = inspectionResult.processedResponse || fullResponse;
+      wasRedacted = true;
+
+      logger.info('LLM streaming response redacted', {
+        event: 'CHAT_STREAM_OUTPUT_REDACTED',
+        userId,
+        sessionId,
+        requestId,
+      });
+    }
+  }
+
+  // Save assistant message
+  const assistantMessage = await prisma.chatMessage.create({
+    data: {
+      userId,
+      sessionId,
+      role: 'assistant',
+      content: finalResponse,
+    },
+  });
+
+  // Audit logging
+  if (securityConfigService.isFeatureEnabled('AUDIT_LOGGING_ENABLED')) {
+    const processingMs = Date.now() - startTime;
+    const requestHash = crypto.createHash('sha256').update(message).digest('hex').substring(0, 16);
+    const responseHash = crypto.createHash('sha256').update(finalResponse).digest('hex').substring(0, 16);
+
+    await auditLogger.logLLMInteraction({
+      userId,
+      sessionId,
+      requestId,
+      endpoint: '/api/chat/stream',
+      timestamp: new Date(),
+      requestHash,
+      responseHash,
+      securityDecision: wasRedacted ? 'REDACT' : 'ALLOW',
+      processingMs,
+      patternsMatched: [],
+    });
+  }
+
+  logger.info('Streaming chat message processed successfully', {
+    event: 'CHAT_MESSAGE_STREAM_COMPLETE',
+    userId,
+    sessionId,
+    requestId,
+    processingMs: Date.now() - startTime,
+    wasRedacted,
+  });
+
+  return {
+    wasRedacted,
+    messageId: assistantMessage.id,
+    fullResponse: finalResponse,
+  };
+}
+
+/**
  * Get all sessions for a user
  * SECURE: Only fetches sessions belonging to the authenticated user
  */
@@ -534,5 +716,6 @@ export const chatService = {
   getOrCreateSession,
   getChatHistory,
   processMessage,
+  processMessageStream,
   getUserSessions,
 };

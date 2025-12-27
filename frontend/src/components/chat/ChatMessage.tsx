@@ -14,9 +14,15 @@ export interface ChatMessageProps {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp?: string;
+  isStreaming?: boolean;
 }
 
-export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, timestamp }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({
+  role,
+  content,
+  timestamp,
+  isStreaming = false,
+}) => {
   const isUser = role === 'user';
   const isSystem = role === 'system';
 
@@ -71,6 +77,24 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, timesta
         >
           <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
             {content}
+            {isStreaming && (
+              <Box
+                component="span"
+                sx={{
+                  display: 'inline-block',
+                  width: '2px',
+                  height: '1em',
+                  bgcolor: 'currentColor',
+                  ml: '2px',
+                  verticalAlign: 'text-bottom',
+                  animation: 'blink 1s infinite',
+                  '@keyframes blink': {
+                    '0%, 50%': { opacity: 1 },
+                    '51%, 100%': { opacity: 0 },
+                  },
+                }}
+              />
+            )}
           </Typography>
           {timestamp && (
             <Typography
