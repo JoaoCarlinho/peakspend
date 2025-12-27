@@ -12,7 +12,7 @@ export const ChatPage: React.FC = () => {
   return (
     <Container maxWidth="md" sx={{ py: 3 }}>
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" gutterBottom>
+        <Typography variant="h4" component="h1" gutterBottom>
           Financial Assistant
         </Typography>
         <Typography variant="body2" color="text.secondary">
