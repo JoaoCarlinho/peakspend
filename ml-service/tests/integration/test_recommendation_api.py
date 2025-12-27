@@ -200,7 +200,7 @@ class TestRetrainingAPI:
 
         assert 'user_id' in data
         assert 'should_retrain' in data
-        assert 'reasons' in data
+        assert 'retrain_reasons' in data
         assert isinstance(data['should_retrain'], bool)
 
     def test_trigger_retraining_skip(self):
