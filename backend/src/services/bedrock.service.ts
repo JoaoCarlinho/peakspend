@@ -22,6 +22,7 @@ export interface StructuredReceipt {
     quantity?: number;
     price?: number;
   }>;
+  notes?: string;
   category_hint?: string;
   confidence: number;
   raw_text?: string;
@@ -34,6 +35,11 @@ export interface SpendingInsight {
   impact: string;
   actionable_steps: string[];
   confidence: number;
+}
+
+export interface BedrockMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
 }
 
 export class BedrockService {
@@ -86,6 +92,7 @@ Return a JSON object with:
 - amount: number (total amount paid)
 - date: string (ISO format YYYY-MM-DD, infer if not explicit)
 - items: array of {name, quantity, price} if itemized
+- notes: string (formatted itemized list of purchases for reference, e.g. "Items purchased:\\n- Organic Bananas x2 $3.99\\n- Almond Milk $4.50". Include item names, quantities, and prices if available. Return null if no items found)
 - category_hint: string (suggest ONE category: Groceries, Dining, Transportation, Shopping, Entertainment, or Other)
 - confidence: number (0.0-1.0, how confident you are in the extraction)
 
@@ -98,6 +105,7 @@ Be precise. If a field is unclear, use null. Return ONLY valid JSON, no markdown
         amount?: string | number;
         date?: string;
         items?: Array<{ name: string; quantity?: number; price?: number }>;
+        notes?: string;
         category_hint?: string;
         confidence?: number;
       };
@@ -111,6 +119,9 @@ Be precise. If a field is unclear, use null. Return ONLY valid JSON, no markdown
         confidence: parsed.confidence || 0.85,
         raw_text: rawOcrText,
       };
+      if (parsed.notes) {
+        result.notes = parsed.notes;
+      }
       if (parsed.category_hint) {
         result.category_hint = parsed.category_hint;
       }
@@ -203,7 +214,58 @@ Return ONLY valid JSON array, no markdown or explanation.`;
   }
 
   /**
-   * Core method to invoke Bedrock model
+   * USE CASE 3: Chat with Financial Assistant
+   * Conversational chat for the financial assistant feature
+   */
+  async chat(messages: BedrockMessage[]): Promise<string> {
+    if (!this.client) {
+      throw new Error('Bedrock client not initialized');
+    }
+
+    // Separate system message from conversation messages
+    const systemMessage = messages.find(m => m.role === 'system');
+    const conversationMessages = messages.filter(m => m.role !== 'system');
+
+    // Format for Claude models on Bedrock
+    const requestBody: {
+      anthropic_version: string;
+      max_tokens: number;
+      system?: string;
+      messages: Array<{ role: string; content: string }>;
+    } = {
+      anthropic_version: 'bedrock-2023-05-31',
+      max_tokens: 4096,
+      messages: conversationMessages.map(m => ({
+        role: m.role,
+        content: m.content,
+      })),
+    };
+
+    // Add system message if present
+    if (systemMessage) {
+      requestBody.system = systemMessage.content;
+    }
+
+    const command = new InvokeModelCommand({
+      modelId: this.modelId,
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify(requestBody),
+    });
+
+    const response = await this.client.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+
+    // Extract text from Claude response format
+    if (responseBody.content && responseBody.content[0] && responseBody.content[0].text) {
+      return responseBody.content[0].text;
+    }
+
+    throw new Error('Unexpected Bedrock response format');
+  }
+
+  /**
+   * Core method to invoke Bedrock model (single prompt)
    */
   private async invokeModel(prompt: string): Promise<string> {
     if (!this.client) {

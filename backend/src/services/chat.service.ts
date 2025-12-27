@@ -1,10 +1,14 @@
 import { getPrismaClient } from '../config/database';
 import { ollamaService, OllamaMessage } from './ollama.service';
+import { bedrockService, BedrockMessage } from './bedrock.service';
 import { outputInspector, OutputDecision } from '../llm/guardrails/outputInspector.service';
 import { auditLogger } from '../audit';
 import { securityConfigService } from '../security/securityConfig.service';
 import logger from '../config/logger';
 import * as crypto from 'crypto';
+
+// LLM Provider configuration
+const LLM_PROVIDER = process.env['LLM_PROVIDER'] || 'ollama';
 
 const prisma = getPrismaClient();
 
@@ -371,25 +375,30 @@ export async function processMessage(
 
     // Get conversation history for context
     const history = await getChatHistory(userId, sessionId, 10);
-    const conversationMessages: OllamaMessage[] = history.slice(-8).map((m) => ({
+    const conversationMessages = history.slice(-8).map((m) => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
     }));
 
-    // Build messages array for LLM
-    const messages: OllamaMessage[] = [
+    // Build messages array for LLM (compatible with both Ollama and Bedrock)
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
       { role: 'system', content: systemPrompt + expenseContext + goalsContext },
       ...conversationMessages,
       { role: 'user', content: message },
     ];
 
-    // Call Ollama service
+    // Call appropriate LLM service based on provider
     let rawResponse: string;
     try {
-      rawResponse = await ollamaService.chat(messages);
+      if (LLM_PROVIDER === 'bedrock') {
+        rawResponse = await bedrockService.chat(messages as BedrockMessage[]);
+      } else {
+        rawResponse = await ollamaService.chat(messages as OllamaMessage[]);
+      }
     } catch (error) {
-      logger.error('Ollama service error', {
-        event: 'CHAT_OLLAMA_ERROR',
+      logger.error('LLM service error', {
+        event: 'CHAT_LLM_ERROR',
+        provider: LLM_PROVIDER,
         userId,
         sessionId,
         requestId,

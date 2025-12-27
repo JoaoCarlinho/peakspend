@@ -36,6 +36,7 @@ export interface EnhancedReceiptData {
     quantity?: number;
     price?: number;
   }>;
+  notes?: string;
   suggestedCategory: string;
   confidence: number;
   processingMethod: 'bedrock' | 'ollama' | 'fallback';
@@ -58,7 +59,7 @@ export class ReceiptService {
         logger.info('🤖 Using AWS Bedrock for receipt OCR enhancement');
         const structured = await bedrockService.enhanceReceiptOCR(rawOcrResult.text);
 
-        return {
+        const result: EnhancedReceiptData = {
           merchant: structured.merchant,
           amount: structured.amount,
           date: structured.date,
@@ -68,6 +69,10 @@ export class ReceiptService {
           processingMethod: 'bedrock',
           rawText: rawOcrResult.text,
         };
+        if (structured.notes) {
+          result.notes = structured.notes;
+        }
+        return result;
       } catch (error) {
         logger.error('Bedrock receipt processing failed, trying Ollama:', error);
         // Fall through to Ollama
@@ -82,7 +87,7 @@ export class ReceiptService {
         logger.info('🦙 Using Ollama for receipt OCR enhancement');
         const structured = await ollamaService.enhanceReceiptOCR(rawOcrResult.text);
 
-        return {
+        const result: EnhancedReceiptData = {
           merchant: structured.merchant,
           amount: structured.amount,
           date: structured.date,
@@ -92,6 +97,10 @@ export class ReceiptService {
           processingMethod: 'ollama',
           rawText: rawOcrResult.text,
         };
+        if (structured.notes) {
+          result.notes = structured.notes;
+        }
+        return result;
       } catch (error) {
         logger.error('Ollama receipt processing failed, falling back:', error);
         return this.fallbackProcessing(rawOcrResult);
