@@ -222,6 +222,13 @@ Return ONLY valid JSON array, no markdown or explanation.`;
       throw new Error('Bedrock client not initialized');
     }
 
+    const startTime = Date.now();
+    logger.info('Starting Bedrock chat request', {
+      event: 'BEDROCK_CHAT_START',
+      messageCount: messages.length,
+      modelId: this.modelId,
+    });
+
     // Separate system message from conversation messages
     const systemMessage = messages.find(m => m.role === 'system');
     const conversationMessages = messages.filter(m => m.role !== 'system');
@@ -255,6 +262,13 @@ Return ONLY valid JSON array, no markdown or explanation.`;
 
     const response = await this.client.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+
+    const durationMs = Date.now() - startTime;
+    logger.info('Bedrock chat request completed', {
+      event: 'BEDROCK_CHAT_COMPLETE',
+      durationMs,
+      modelId: this.modelId,
+    });
 
     // Extract text from Claude response format
     if (responseBody.content && responseBody.content[0] && responseBody.content[0].text) {
