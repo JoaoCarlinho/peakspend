@@ -352,6 +352,13 @@ export async function processMessage(
   });
 
   try {
+    // Get conversation history BEFORE saving new message to avoid duplication
+    const history = await getChatHistory(userId, sessionId, 10);
+    const conversationMessages = history.slice(-8).map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }));
+
     // Save user message
     await prisma.chatMessage.create({
       data: {
@@ -372,13 +379,6 @@ export async function processMessage(
     const systemPrompt = await getSystemPrompt(chatMode);
     const expenseContext = await buildExpenseContext(userId, message);
     const goalsContext = chatMode === 'coach' ? await buildGoalsContext(userId) : '';
-
-    // Get conversation history for context
-    const history = await getChatHistory(userId, sessionId, 10);
-    const conversationMessages = history.slice(-8).map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    }));
 
     // Build messages array for LLM (compatible with both Ollama and Bedrock)
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
@@ -536,6 +536,13 @@ export async function* processMessageStream(
     chatMode,
   });
 
+  // Get conversation history BEFORE saving new message to avoid duplication
+  const history = await getChatHistory(userId, sessionId, 10);
+  const conversationMessages = history.slice(-8).map((m) => ({
+    role: m.role as 'user' | 'assistant',
+    content: m.content,
+  }));
+
   // Save user message before streaming starts
   await prisma.chatMessage.create({
     data: {
@@ -556,13 +563,6 @@ export async function* processMessageStream(
   const systemPrompt = await getSystemPrompt(chatMode);
   const expenseContext = await buildExpenseContext(userId, message);
   const goalsContext = chatMode === 'coach' ? await buildGoalsContext(userId) : '';
-
-  // Get conversation history for context
-  const history = await getChatHistory(userId, sessionId, 10);
-  const conversationMessages = history.slice(-8).map((m) => ({
-    role: m.role as 'user' | 'assistant',
-    content: m.content,
-  }));
 
   // Build messages array for LLM
   const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [

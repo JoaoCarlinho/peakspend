@@ -17,8 +17,8 @@ ENVIRONMENT="${ENVIRONMENT:-production}"
 S3_BUCKET="peakspend-frontend-${ENVIRONMENT}-${AWS_ACCOUNT_ID}"
 CLOUDFRONT_DISTRIBUTION_ID="${CLOUDFRONT_DISTRIBUTION_ID:-E1O89SL2CFI9W5}"
 
-# API URL for production
-VITE_API_URL="${VITE_API_URL:-https://rczwkm4t9i.us-east-1.awsapprunner.com/}"
+# API URL for production (no trailing slash - frontend adds /api/...)
+VITE_API_URL="${VITE_API_URL:-https://rczwkm4t9i.us-east-1.awsapprunner.com}"
 
 # Colors for output
 RED='\033[0;31m'

@@ -43,6 +43,10 @@ COPY --from=builder /app/src/generated/prisma ./src/generated/prisma
 # Copy config files (required for security services)
 COPY --from=builder /app/config ./config
 
+# Copy startup scripts
+COPY scripts/reset-and-migrate.sh ./scripts/
+RUN chmod +x ./scripts/reset-and-migrate.sh
+
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
@@ -60,4 +64,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 # Start the application with migrations
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+# Set RESET_DATABASE=true and SEED_DATABASE=true for one-time database reset
+CMD ["./scripts/reset-and-migrate.sh"]

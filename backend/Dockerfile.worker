@@ -33,8 +33,9 @@ RUN npm ci --only=production && \
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
 
-# Copy Prisma client (prisma-client-js generates JS directly to src/)
-COPY --from=builder /app/src/generated/prisma ./src/generated/prisma
+# Copy Prisma client - compiled code imports from ../generated/prisma relative to dist/services
+# So it resolves to dist/generated/prisma
+COPY --from=builder /app/src/generated/prisma ./dist/generated/prisma
 
 # Copy config files (required for security services)
 COPY --from=builder /app/config ./config
