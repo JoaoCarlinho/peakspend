@@ -21,6 +21,7 @@ import { ChatInput } from './ChatInput';
 import { TypingIndicator } from './TypingIndicator';
 import { ChatModeSelector } from './ChatModeSelector';
 import { chatService, ChatMode } from '../../services/chatService';
+import { useStreamingChat } from '../../hooks/useStreamingChat';
 
 export interface ChatContainerProps {
   initialMode?: ChatMode;
@@ -38,12 +39,15 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   const [mode, setMode] = useState<ChatMode>(initialMode);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [streamingContent, setStreamingContent] = useState<string>('');
+  const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { streamMessage, cancelStream } = useStreamingChat();
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change or during streaming
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
+  }, [messages, loading, streamingContent]);
 
   // Create session on mount
   useEffect(() => {
@@ -59,6 +63,13 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
     initSession();
   }, []);
 
+  // Cleanup streaming on unmount
+  useEffect(() => {
+    return () => {
+      cancelStream();
+    };
+  }, [cancelStream]);
+
   const handleSendMessage = useCallback(
     async (content: string) => {
       // Add user message immediately
@@ -68,39 +79,73 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, userMessage]);
-      setLoading(true);
       setError(null);
 
-      try {
-        let response;
-        if (sessionId) {
-          response = await chatService.sendMessage(sessionId, content, mode);
-        } else {
-          response = await chatService.quickMessage(content, mode);
+      // Use streaming if we have a session, otherwise fall back to non-streaming
+      if (sessionId) {
+        setIsStreaming(true);
+        setStreamingContent('');
+
+        streamMessage(sessionId, content, mode, {
+          onToken: (token) => {
+            setStreamingContent((prev) => prev + token);
+          },
+          onComplete: (result) => {
+            // Convert streaming message to regular message
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: result.fullResponse,
+                timestamp: new Date().toISOString(),
+              },
+            ]);
+            setStreamingContent('');
+            setIsStreaming(false);
+
+            // Show warning if content was redacted
+            if (result.wasRedacted) {
+              setError('Some content was filtered for your protection.');
+            }
+          },
+          onError: (err) => {
+            console.error('Streaming error:', err);
+            setError('Failed to send message. Please try again.');
+            setStreamingContent('');
+            setIsStreaming(false);
+            // Remove the user message on error
+            setMessages((prev) => prev.slice(0, -1));
+          },
+        });
+      } else {
+        // Fall back to non-streaming for initial message (no session yet)
+        setLoading(true);
+        try {
+          const response = await chatService.quickMessage(content, mode);
           setSessionId(response.sessionId);
-        }
 
-        const assistantMessage: ChatMessageProps = {
-          role: 'assistant',
-          content: response.response,
-          timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
+          const assistantMessage: ChatMessageProps = {
+            role: 'assistant',
+            content: response.response,
+            timestamp: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, assistantMessage]);
 
-        // Show warning if content was redacted
-        if (response.wasRedacted) {
-          setError('Some content was filtered for your protection.');
+          // Show warning if content was redacted
+          if (response.wasRedacted) {
+            setError('Some content was filtered for your protection.');
+          }
+        } catch (err) {
+          console.error('Failed to send message:', err);
+          setError('Failed to send message. Please try again.');
+          // Remove the user message on error
+          setMessages((prev) => prev.slice(0, -1));
+        } finally {
+          setLoading(false);
         }
-      } catch (err) {
-        console.error('Failed to send message:', err);
-        setError('Failed to send message. Please try again.');
-        // Remove the user message on error
-        setMessages((prev) => prev.slice(0, -1));
-      } finally {
-        setLoading(false);
       }
     },
-    [sessionId, mode]
+    [sessionId, mode, streamMessage]
   );
 
   const handleModeChange = (newMode: ChatMode) => {
@@ -116,6 +161,9 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
   };
 
   const handleReset = () => {
+    cancelStream();
+    setIsStreaming(false);
+    setStreamingContent('');
     setMessages([{ role: 'assistant', content: welcomeMessage }]);
     setSessionId(null);
     chatService.createSession().then((session) => {
@@ -152,7 +200,7 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
           {mode === 'coach' ? 'Budget Coach' : 'Financial Assistant'}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ChatModeSelector mode={mode} onModeChange={handleModeChange} disabled={loading} />
+          <ChatModeSelector mode={mode} onModeChange={handleModeChange} disabled={loading || isStreaming} />
           <Tooltip title="Start new conversation">
             <IconButton size="small" onClick={handleReset} sx={{ color: 'white' }}>
               <RefreshIcon />
@@ -173,14 +221,19 @@ export const ChatContainer: React.FC<ChatContainerProps> = ({
         {messages.map((msg, index) => (
           <ChatMessage key={index} {...msg} />
         ))}
-        {loading && <TypingIndicator />}
+        {/* Show streaming message with typewriter cursor */}
+        {isStreaming && streamingContent && (
+          <ChatMessage role="assistant" content={streamingContent} isStreaming={true} />
+        )}
+        {/* Show typing indicator only when loading (non-streaming) or streaming hasn't started */}
+        {(loading || (isStreaming && !streamingContent)) && <TypingIndicator />}
         <div ref={messagesEndRef} />
       </Box>
 
       {/* Input */}
       <ChatInput
         onSend={handleSendMessage}
-        loading={loading}
+        loading={loading || isStreaming}
         placeholder={
           mode === 'coach'
             ? 'Ask for budget advice or set a goal...'

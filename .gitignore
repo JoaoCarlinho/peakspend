@@ -63,12 +63,15 @@ docs/
 
 # infrastructure
 infrastructure/
+!infrastructure/data_flow_diagram.xml
 
 # scripts
 scripts/
+!scripts/deploy/
 
 # agile process files
 bmad/
 .claude/
 chat_support_docs/
 exploitable_features/
+stream_llm_assistant_response/

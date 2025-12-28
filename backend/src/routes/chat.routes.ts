@@ -22,6 +22,9 @@ router.get('/sessions', chatController.getSessions);
 router.get('/sessions/:sessionId/messages', chatController.getMessages);
 router.post('/sessions/:sessionId/messages', chatController.sendMessage);
 
+// Streaming message endpoint (SSE)
+router.post('/sessions/:sessionId/messages/stream', chatController.sendMessageStream);
+
 // Quick message endpoint (auto-creates session)
 router.post('/message', chatController.quickMessage);
 
