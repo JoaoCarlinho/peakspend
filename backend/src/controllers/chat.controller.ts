@@ -317,12 +317,13 @@ export async function sendMessageStream(
         res.write(`data: ${tokenEvent}\n\n`);
       }
 
-      // Send completion event with metadata
+      // Send completion event with metadata including full response
       if (result && isClientConnected) {
         const completionEvent = JSON.stringify({
           done: true,
           wasRedacted: result.wasRedacted,
           messageId: result.messageId,
+          fullResponse: result.fullResponse,
         });
         res.write(`data: ${completionEvent}\n\n`);
       }
