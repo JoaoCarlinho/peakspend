@@ -8,7 +8,9 @@
 import { useCallback, useRef } from 'react';
 import { ChatMode } from '../services/chatService';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://rczwkm4t9i.us-east-1.awsapprunner.com/';
+// Ensure base URL ends with slash for proper URL construction
+const rawApiUrl = import.meta.env.VITE_API_URL || 'https://rczwkm4t9i.us-east-1.awsapprunner.com';
+const API_BASE_URL = rawApiUrl.endsWith('/') ? rawApiUrl : `${rawApiUrl}/`;
 
 export interface StreamingCallbacks {
   onToken: (token: string) => void;
