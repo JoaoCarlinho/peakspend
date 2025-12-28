@@ -1,31 +1,34 @@
 #!/bin/sh
-# One-time database reset script
-# This drops all tables and recreates them with the fresh migration
-# FORCE_RESET: Always reset on this deployment to fix failed migration state
+# Database migration and optional reset script
+# Set RESET_DATABASE=true to drop and recreate schema (destructive!)
+# Set SEED_DATABASE=true to seed demo data
 
 set -e
 
-echo "=== Database Reset and Migration ==="
+echo "=== Database Migration ==="
 
-# FORCE RESET: Dropping all tables to clear failed migration state
-echo "FORCE RESET - Dropping all tables..."
+# Check if RESET_DATABASE flag is set
+if [ "$RESET_DATABASE" = "true" ]; then
+    echo "RESET_DATABASE=true - Dropping all tables..."
 
-# Drop and recreate the public schema
-npx prisma db execute --schema prisma/schema.prisma --stdin <<EOF
+    # Drop and recreate the public schema
+    npx prisma db execute --schema prisma/schema.prisma --stdin <<EOF
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
 GRANT ALL ON SCHEMA public TO PUBLIC;
 EOF
 
-echo "Schema dropped and recreated"
+    echo "Schema dropped and recreated"
+fi
 
 # Run migrations
 echo "Running migrations..."
 npx prisma migrate deploy
 
-# Seed demo users and categories using SQL (ts-node not available in production)
-echo "Seeding demo data..."
-npx prisma db execute --schema prisma/schema.prisma --stdin <<'SEEDEOF'
+# Seed demo users and categories if requested
+if [ "$SEED_DATABASE" = "true" ]; then
+    echo "Seeding demo data..."
+    npx prisma db execute --schema prisma/schema.prisma --stdin <<'SEEDEOF'
 -- Insert demo users
 INSERT INTO users (id, email, "passwordHash", name, role, "createdAt", "updatedAt", "termsAcceptedAt", "termsVersion", "privacyPolicyAcceptedAt", "privacyPolicyVersion", "marketingConsent", "analyticsConsent", "mlTrainingConsent")
 VALUES
@@ -50,7 +53,8 @@ VALUES
   (gen_random_uuid(), NULL, 'Other', '#D5AAFF', true, NOW())
 ON CONFLICT ("userId", name) DO NOTHING;
 SEEDEOF
-echo "Demo data seeded"
+    echo "Demo data seeded"
+fi
 
 echo "=== Migration complete ==="
 
